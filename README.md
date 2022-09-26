@@ -62,14 +62,6 @@ fastaFile <- system.file("extdata", "samples.metagenome.fasta.gz", package="meta
 
 ## Memory requirements
 
-At minimum, make sure to allocate for JVM at least 10 bytes per variant
-per sample. If there are `n` samples and `m` variants allocate
-`10 x n x m` bytes of RAM. For example, for processing a VCF file
-containing data for 1 million variants and 1 thousand samples, allocate
-at least : 10^6 x 10^3 x 10 = 10^10 bytes = 10GB of RAM. For optimal
-execution, allocate more RAM than minimum. This will trigger less times
-garbage collections and hence less pauses.
-
 In order to allocate RAM, a special parameter needs to be passed while
 JVM initializes. JVM parameters can be passed by setting
 `java.parameters` option. The `-Xmx` parameter, followed (without space)
@@ -84,11 +76,6 @@ In order to allocate 3GB of RAM for the JVM, through R code, use:
 ``` r
 options(java.parameters="-Xmx3G")
 ```
-
-A rough estimation for the required RAM, if sample and variant numbers
-are not known, is half the size of the uncompressed VCF file. For
-example for processing a VCF file, which uncompressed occupies 2GB of
-disk space, allocate 1GB of RAM.
 
 ## Section
 

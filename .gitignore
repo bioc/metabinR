@@ -1,0 +1,17 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.Rdata
+.httr-oauth
+.DS_Store
+metabinR.Rproj
+README.Rmd
+vignettes/*.md
+vignettes/*.R
+vignettes/*.html
+/doc/
+/Meta/
+/tmp/
+inst/script/*.html
+inst/doc
