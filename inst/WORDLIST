@@ -1,6 +1,9 @@
 BioC
+bioc
+bioconductor
 CAMI
 cami
+checkResults
 Compositional
 compositional
 cosi
@@ -13,6 +16,7 @@ fastq
 frl
 gz
 gzip
+http
 https
 JDK
 JVM
@@ -32,4 +36,5 @@ pre
 publisso
 Rhizosphere
 rJava
+svg
 www
