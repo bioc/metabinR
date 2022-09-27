@@ -4,7 +4,7 @@
 \name{metabinR-package}
 \alias{metabinR}
 \alias{metabinR-package}
-\title{metabinR: Abundance and Compositional based binning of Metagenomes}
+\title{metabinR: Abundance and Compositional Based Binning of Metagenomes}
 \description{
 Provide functions for performing abundance and compositional based binning on metagenomic samples, directly from FASTA or FASTQ files. Functions are implemented in Java and called via rJava. Parallel implementation that operates directly on input FASTA/FASTQ files for fast execution.
 }
