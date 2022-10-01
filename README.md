@@ -3,11 +3,10 @@
 
 # metabinR
 
-<!-- badges: start -->
-
-\[\[BioC status\]
-(<http://www.bioconductor.org/shields/build/release/bioc/metabinR.svg>)\]
-(<https://bioconductor.org/checkResults/release/bioc-LATEST/metabinR>)
+<!-- badges: start
+[![BioC status]
+(http://www.bioconductor.org/shields/build/release/bioc/metabinR.svg)]
+(https://bioconductor.org/checkResults/release/bioc-LATEST/metabinR)
 <!-- badges: end -->
 
 Metagenomics holds great promises for deepening our knowledge of key

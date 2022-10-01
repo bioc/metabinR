@@ -12,6 +12,8 @@ abundance_based_binning(
   numOfClustersAB = 5,
   outputAB = "AB.cluster",
   keepQuality = FALSE,
+  dryRun = FALSE,
+  gzip = FALSE,
   numOfThreads = 1
 )
 }
@@ -32,6 +34,10 @@ files location and prefix.}
 
 \item{keepQuality}{Keep fastq qualities on the output files.}
 
+\item{dryRun}{Don't write any output files.}
+
+\item{gzip}{Gzip output files.}
+
 \item{numOfThreads}{Number of threads to use.}
 }
 \value{
@@ -43,12 +49,10 @@ directly from FASTA or FASTQ files.
 See \doi{10.1186/s12859-016-1186-3} for more details.
 }
 \examples{
-abundance_based_binning(
-        system.file("extdata", "samples.metagenome.fasta.gz",
-        package = "metabinR"
-    )
+abundance_based_binning(system.file("extdata", "reads.metagenome.fasta.gz",
+                            package = "metabinR"),
+                        dryRun = TRUE, kMerSizeAB = 8
 )
-unlink("AB.cluster__*")
 }
 \references{
 Java implementation:

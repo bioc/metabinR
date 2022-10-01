@@ -1,0 +1,151 @@
+---
+title: "metabinR"
+author: 
+-   name: "Anestis Gkanogiannis"
+    email: anestis@gkanogiannis.com
+package: metabinR
+output: 
+    BiocStyle::html_document:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{metabinR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# About metabinR
+
+description
+
+# Installation
+
+To install `metabinR` package:
+```{r, eval=FALSE}
+if (!requireNamespace("BiocManager", quietly=TRUE))
+    install.packages("BiocManager")
+BiocManager::install("metabinR")
+```
+
+# Preparation
+
+## Allocate RAM and load required libraries
+In order to allocate RAM, a special parameter needs to be passed while JVM 
+initializes. JVM parameters can be passed by setting `java.parameters` option.
+The `-Xmx` parameter, followed (without space) by an integer value and a 
+letter, is used to tell JVM what is the maximum amount of heap RAM that it can
+use. The letter in the parameter (uppercase or lowercase), indicates RAM units.
+For example, parameters `-Xmx1024m` or `-Xmx1024M` or `-Xmx1g` or `-Xmx1G`, all
+allocate 1 Gigabyte or 1024 Megabytes of maximum RAM for JVM.
+
+```{r, eval=TRUE, message=FALSE}
+options(java.parameters="-Xmx1G")
+unloadNamespace("metabinR")
+library(metabinR)
+library(data.table)
+library(ggplot2)
+library(gridExtra)
+library(cvms)
+```
+
+# Abundance based binning example
+In this example we use the simulated metagenome sample (see sample data) to 
+perform abundance based binning.
+The simulated metagenome contains 26664 Illumina reads (13332 pairs of 2x150bp) 
+that have been sampled from 10 bacterial genomes in such a way 
+(log-norm abundances) that each read is belongs to one of two abundance classes
+(class 1 of high abundant taxa and class 2 of low abundant taxa).
+
+We first get the abundance information for the simulated metagenome :
+```{r, eval=TRUE, message=FALSE, warning=FALSE}
+abundances <- read.table(
+    system.file("extdata", "distribution_0.txt",package = "metabinR"))
+```
+In `abundances` data.frame, column 1 is the genome id, 
+column 2 is the abundance ratio and column 3 is the original 
+abundance class (1 or 2).
+
+Then we get the read mapping information (from which genome each read is 
+originating from and in which abundance class belongs) :
+```{r, eval=TRUE, message=FALSE, warning=FALSE}
+reads.mapping <- fread(
+    system.file("extdata", "reads_mapping.tsv.gz",package = "metabinR"))
+reads.mapping$AB_id <- abundances$V3[match(reads.mapping$genome_id,
+                                                                abundances$V1)]
+reads.mapping <- reads.mapping[order(reads.mapping$anonymous_read_id),]
+```
+In `reads.mapping` data.frame, column `anonymous_read_id` is the read id, 
+column `genome_id` is the genome id and 
+column `AB_id` is the original abundance class id.
+
+We perform Abundance based Binning on the simulated reads, 
+for 2 abundance classes and analyzing data with 10-mers :
+```{r, eval=TRUE, message=FALSE, warning=FALSE}
+abundance_based_binning(
+    system.file("extdata", "reads.metagenome.fasta.gz",package = "metabinR"), 
+    numOfClustersAB = 2, kMerSizeAB = 10, outputAB = "AB.cluster")
+```
+Note that read id of fasta header 
+matches `anonymous_read_id` of `reads.mapping`.
+
+Call to \link[metabinR]{abundance_based_binning} will produce 2 fasta file, 
+one for each of the abundance classes, containing fasta reads assigned to each 
+class.
+It will also produce a file containing histogram information of kmers counted.
+We can plot this histogram as :
+```{r, eval=TRUE, message=FALSE, warning=FALSE}
+histogram <- read.table("AB.cluster__histogram.tsv", header = TRUE)
+ggplot(histogram, aes(x=counts, y=frequency)) + geom_area() +
+    labs(title = "kmer counts histogram") + theme_bw()
+```
+
+We get the assigned abundance class for each read with :
+```{r, eval=TRUE, message=FALSE, warning=FALSE}
+abundance.clusters <- 
+    rbind(
+        data.frame(read_id=readLines("AB.cluster__001.fasta")[c(TRUE,FALSE)],
+                    AB_id=1),
+        data.frame(read_id=readLines("AB.cluster__002.fasta")[c(TRUE,FALSE)],
+                    AB_id=2))
+abundance.clusters$read_id <- sub('.', '', abundance.clusters$read_id)
+abundance.clusters <- abundance.clusters[order(abundance.clusters$read_id),]
+```
+
+Evaluate predicted abundance class and plot confusion matrix :
+```{r, eval=TRUE, message=FALSE, warning=FALSE}
+eval <- cvms::evaluate(
+    data = data.frame(prediction=as.character(abundance.clusters$AB_id),
+                        target=as.character(reads.mapping$AB_id),
+                        stringsAsFactors = FALSE),
+    prediction_cols = "prediction", target_col = "target", type = "binomial"
+)
+p <- cvms::plot_confusion_matrix(eval) +
+    labs(title = "Confusion Matrix", 
+        x="Target Abundance Class",y="Predicted Abundance Class")
+tab <- as.data.frame(
+    c(
+        Accuracy =  round(eval$Accuracy,4),
+        Specificity =  round(eval$Specificity,4),
+        Sensitivity =  round(eval$Sensitivity,4),
+        Fscore =  round(eval$F1,4),
+        Kappa =  round(eval$Kappa,4)
+    )
+)
+p_tab <- tableGrob(unname(tab))
+grid.arrange(p, p_tab, ncol = 2)
+```
+
+# Compositional based binning example
+
+
+
+# Session Info
+```{r setup}
+utils::sessionInfo()
+```

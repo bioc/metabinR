@@ -14,17 +14,17 @@
 #'     files location and prefix.
 #' @param keepQuality Keep fastq qualities on the output files.
 #' @param numOfThreads Number of threads to use.
+#' @param dryRun Don't write any output files.
+#' @param gzip Gzip output files.
 #'
 #' @return A \code{\link[stats]{dist}} distances object of the calculation.
 #' @export
 #'
 #' @examples
-#' abundance_based_binning(
-#'         system.file("extdata", "samples.metagenome.fasta.gz",
-#'         package = "metabinR"
-#'     )
+#' abundance_based_binning(system.file("extdata", "reads.metagenome.fasta.gz",
+#'                             package = "metabinR"),
+#'                         dryRun = TRUE, kMerSizeAB = 8
 #' )
-#' unlink("AB.cluster__*")
 #' @author Anestis Gkanogiannis, \email{anestis@@gkanogiannis.com}
 #' @references Java implementation:
 #' \url{https://github.com/gkanogiannis/MetaTarget}
@@ -32,7 +32,8 @@
 
 abundance_based_binning <- function(..., eMin = 1, eMax = 0, kMerSizeAB = 10,
                                     numOfClustersAB = 5, outputAB="AB.cluster",
-                                    keepQuality = FALSE, numOfThreads = 1) {
+                                    keepQuality = FALSE, dryRun = FALSE,
+                                    gzip = FALSE, numOfThreads = 1) {
     ins <- unlist(list(...))
 
     abundance_based_binning_checkParams(ins = ins, eMin = eMin, eMax = eMax,
@@ -40,6 +41,7 @@ abundance_based_binning <- function(..., eMin = 1, eMax = 0, kMerSizeAB = 10,
                                         numOfClustersAB = numOfClustersAB,
                                         outputAB = outputAB,
                                         keepQuality = keepQuality,
+                                        dryRun = dryRun, gzip = gzip,
                                         numOfThreads = numOfThreads)
 
     metatarget <- rJava::.jnew(
@@ -48,6 +50,9 @@ abundance_based_binning <- function(..., eMin = 1, eMax = 0, kMerSizeAB = 10,
     cmd <- paste("--eMin", eMin, "--eMax", eMax, "--kMerSizeAB", --kMerSizeAB,
                  "--numOfClustersAB", numOfClustersAB, "--outputAB", outputAB,
                  ifelse(keepQuality, "--quality", ""),
+                 ifelse(dryRun, "--dry", ""),
+                 ifelse(gzip, "--gzip", ""),
+                 "--numOfThreads", numOfThreads,
                  "--input", paste(ins, collapse = " --input "), sep = " ")
     metatarget$go(rJava::.jarray(strsplit(cmd, "\\s+")[[1]]))
 
@@ -55,7 +60,8 @@ abundance_based_binning <- function(..., eMin = 1, eMax = 0, kMerSizeAB = 10,
 
 abundance_based_binning_checkParams <- function(ins, eMin, eMax, kMerSizeAB,
                                                 numOfClustersAB, outputAB,
-                                                keepQuality, numOfThreads) {
+                                                keepQuality, dryRun, gzip,
+                                                numOfThreads) {
     if (length(ins)==0 || list(NULL) %in% ins) {
         stop("No input fasta/fastq files were provided.")
     }
@@ -94,6 +100,14 @@ abundance_based_binning_checkParams <- function(ins, eMin, eMax, kMerSizeAB,
 
     if(!is.logical(keepQuality)) {
         stop("keepQuality parameter must be logical.")
+    }
+
+    if(!is.logical(dryRun)) {
+        stop("dryRun parameter must be logical.")
+    }
+
+    if(!is.logical(gzip)) {
+        stop("gzip parameter must be logical.")
     }
 
     if (!is.numeric(numOfThreads) ||
