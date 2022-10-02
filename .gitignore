@@ -14,4 +14,3 @@ vignettes/*.html
 /Meta/
 /tmp/
 inst/script/*.html
-inst/doc

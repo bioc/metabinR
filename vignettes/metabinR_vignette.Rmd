@@ -45,13 +45,14 @@ For example, parameters `-Xmx1024m` or `-Xmx1024M` or `-Xmx1g` or `-Xmx1G`, all
 allocate 1 Gigabyte or 1024 Megabytes of maximum RAM for JVM.
 
 ```{r, eval=TRUE, message=FALSE}
-options(java.parameters="-Xmx1G")
+options(java.parameters="-Xmx1500M")
 unloadNamespace("metabinR")
 library(metabinR)
 library(data.table)
 library(ggplot2)
 library(gridExtra)
 library(cvms)
+library(sabre)
 ```
 
 # Abundance based binning example
@@ -85,11 +86,14 @@ column `genome_id` is the genome id and
 column `AB_id` is the original abundance class id.
 
 We perform Abundance based Binning on the simulated reads, 
-for 2 abundance classes and analyzing data with 10-mers :
+for 2 abundance classes and analyzing data with 10-mers.
+The call returns a dataframe of the assigned cluster 
+and distances to all clusters for each read :
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-abundance_based_binning(
-    system.file("extdata", "reads.metagenome.fasta.gz",package = "metabinR"), 
-    numOfClustersAB = 2, kMerSizeAB = 10, outputAB = "AB.cluster")
+assignments <-abundance_based_binning(
+    system.file("extdata", "reads.metagenome.fasta.gz",package = "metabinR"),
+    numOfClustersAB = 2, kMerSizeAB = 10, dryRun = FALSE, outputAB = "vignette")
+assignments <- assignments[order(assignments$read_id),]
 ```
 Note that read id of fasta header 
 matches `anonymous_read_id` of `reads.mapping`.
@@ -100,45 +104,46 @@ class.
 It will also produce a file containing histogram information of kmers counted.
 We can plot this histogram as :
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-histogram <- read.table("AB.cluster__histogram.tsv", header = TRUE)
+histogram <- read.table("vignette__AB.histogram.tsv", header = TRUE)
 ggplot(histogram, aes(x=counts, y=frequency)) + geom_area() +
     labs(title = "kmer counts histogram") + theme_bw()
 ```
 
-We get the assigned abundance class for each read with :
-```{r, eval=TRUE, message=FALSE, warning=FALSE}
-abundance.clusters <- 
-    rbind(
-        data.frame(read_id=readLines("AB.cluster__001.fasta")[c(TRUE,FALSE)],
-                    AB_id=1),
-        data.frame(read_id=readLines("AB.cluster__002.fasta")[c(TRUE,FALSE)],
-                    AB_id=2))
-abundance.clusters$read_id <- sub('.', '', abundance.clusters$read_id)
-abundance.clusters <- abundance.clusters[order(abundance.clusters$read_id),]
-```
+We get the assigned abundance class for each read in `assignments$AB`
 
-Evaluate predicted abundance class and plot confusion matrix :
+Then we evaluate predicted abundance class and plot confusion matrix :
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-eval <- cvms::evaluate(
-    data = data.frame(prediction=as.character(abundance.clusters$AB_id),
-                        target=as.character(reads.mapping$AB_id),
-                        stringsAsFactors = FALSE),
-    prediction_cols = "prediction", target_col = "target", type = "binomial"
+eval.cvms <- cvms::evaluate(
+    data = data.frame(prediction=as.character(assignments$AB),
+                      target=as.character(reads.mapping$AB_id),
+                      stringsAsFactors = FALSE),
+    target_col = "target",
+    prediction_cols = "prediction",
+    type = "binomial"
 )
-p <- cvms::plot_confusion_matrix(eval) +
+eval.sabre <- sabre::vmeasure(as.character(assignments$AB),
+                              as.character(reads.mapping$AB_id))
+
+p <- cvms::plot_confusion_matrix(eval.cvms) +
     labs(title = "Confusion Matrix", 
-        x="Target Abundance Class",y="Predicted Abundance Class")
+         x = "Target Abundance Class", y = "Predicted Abundance Class")
 tab <- as.data.frame(
     c(
-        Accuracy =  round(eval$Accuracy,4),
-        Specificity =  round(eval$Specificity,4),
-        Sensitivity =  round(eval$Sensitivity,4),
-        Fscore =  round(eval$F1,4),
-        Kappa =  round(eval$Kappa,4)
+        Accuracy =  round(eval.cvms$Accuracy,4),
+        Specificity =  round(eval.cvms$Specificity,4),
+        Sensitivity =  round(eval.cvms$Sensitivity,4),
+        Fscore =  round(eval.cvms$F1,4),
+        Kappa =  round(eval.cvms$Kappa,4),
+        Vmeasure = round(eval.sabre$v_measure,4)
     )
 )
 p_tab <- tableGrob(unname(tab))
 grid.arrange(p, p_tab, ncol = 2)
+```
+
+Clean files :
+```{r, eval=TRUE, message=FALSE, warning=FALSE}
+unlink("vignette*AB*")
 ```
 
 # Compositional based binning example

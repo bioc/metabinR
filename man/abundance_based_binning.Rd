@@ -2,7 +2,7 @@
 % Please edit documentation in R/abundance_based_binning.R
 \name{abundance_based_binning}
 \alias{abundance_based_binning}
-\title{Abundance based binning on metagenomic samples.}
+\title{Abundance based binning on metagenomic samples}
 \usage{
 abundance_based_binning(
   ...,
@@ -32,7 +32,8 @@ abundance_based_binning(
 \item{outputAB}{Output Abundance based Binning Clusters
 files location and prefix.}
 
-\item{keepQuality}{Keep fastq qualities on the output files.}
+\item{keepQuality}{Keep fastq qualities on the output files.
+(will produce .fastq)}
 
 \item{dryRun}{Don't write any output files.}
 
@@ -41,17 +42,23 @@ files location and prefix.}
 \item{numOfThreads}{Number of threads to use.}
 }
 \value{
-A \code{\link[stats]{dist}} distances object of the calculation.
+A \code{\link[base]{data.frame}} of the binning assignments.
+    Return value contains \code{numOfClustersAB + 2} columns.
+\itemize{
+    \item \code{read_id} : read identifier from fasta header
+    \item \code{AB} : read was assigned to this AB cluster index
+    \item \code{AB.n} : read to cluster AB.n distance
+}
 }
 \description{
 This function performs abundance based binning on metagenomic samples,
-directly from FASTA or FASTQ files.
+directly from FASTA or FASTQ files, by long kmer analysis (k>8).
 See \doi{10.1186/s12859-016-1186-3} for more details.
 }
 \examples{
-abundance_based_binning(system.file("extdata", "reads.metagenome.fasta.gz",
-                            package = "metabinR"),
-                        dryRun = TRUE, kMerSizeAB = 8
+abundance_based_binning(
+    system.file("extdata", "reads.metagenome.fasta.gz",package = "metabinR"),
+    dryRun = TRUE, kMerSizeAB = 8
 )
 }
 \references{
