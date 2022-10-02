@@ -20,8 +20,12 @@ modules and evaluated their combination in a new “assembly-free” binning
 protocol.
 
 The goal of metabinR is to provide functions for performing abundance
-and compositional based binning on metagenomic samples, directly from
+and composition based binning on metagenomic samples, directly from
 FASTA or FASTQ files.
+
+Abundance based binning is performed by analyzing sequences with long
+kmers (k\>8), whereas composition based binning is performed by
+utilizing short kmers (k\<8).
 
 ## Requirements
 
@@ -46,19 +50,49 @@ devtools::install_github("gkanogiannis/metabinR")
 
 ## Sample data
 
-Toy fasta metagenome sample data files are provided in `inst/extdata`.
+Toy gzip compressed fasta simulated metagenome file is provided in
+`inst/extdata`.
 
-### samples.fasta.gz
+We use [CAMISIM](https://github.com/CAMI-challenge/CAMISIM) and simulate
+a toy metagenome. See file `CAMISIM_config.ini` for parameters.
 
-Sample metagenome FASTA file containing 1000 fasta sequences. Original
-sequences obtained from the 2nd CAMI Challenge (Rhizosphere) available
-at [https://data.cami-challenge.org/participate](CAMI%20Challenge),
-[https://www.microbiome-cosi.org/cami/cami/cami2](CAMI2%20Challenge) and
-[https://frl.publisso.de/data/frl:6425521/](CAMI2%20raw%20data)..
+Paired-end 2x150bp Illumina reads are sampled from 10 bacterial genomes
+(see file `genome_to_id.tsv`) with abundances drawn from a log-normal
+distribution (see file `distribution_0.txt`).
 
-``` r
-fastaFile <- system.file("extdata", "samples.metagenome.fasta.gz", package="metabinR")
-```
+In total 4Mbases are sampled, yielding 26664 reads (13332 pairs) (see
+file `reads.metagenome.fasta.gz`).
+
+Original mapping information of each simulated read (from which genome
+each read is originating from) is available in `reads_mapping.tsv.gz`.
+
+### CAMISIM_config.ini
+
+Parameters used in `CAMISIM` to generate the simulated metagenome.
+
+### genome_to_id.tsv
+
+Bacterial genomes and their corresponding id that have been used to
+generate the simulated metagenome.
+
+### distribution_0.txt
+
+Abundances of sampled genomes and the Abundance class each one belongs
+to. For this toy simulated metagenome, we assume 2 Abundance classes.
+Class 1 of most abundant taxa and class 2 of less abundant ones.
+
+### reads.metagenome.fasta.gz
+
+Gzip compressed fasta file of the simulated 26664 reads (13332 pairs,
+2x150bp).
+
+### reads_mapping.tsv.gz
+
+Gzip compressed tabular file of the original mapping information of each
+simulated read.
+
+Read id from `reads.metagenome.fasta.gz` matches column
+`anonymous_read_id` and read genome id matches column `genome_id`.
 
 ## Memory requirements
 
@@ -77,10 +111,53 @@ In order to allocate 3GB of RAM for the JVM, through R code, use:
 options(java.parameters="-Xmx3G")
 ```
 
-## Section
+## Abundance based Binning
 
-## Section
+The Abundance based Binning module analyzes input fasta/fastq sequences
+by long kmers (k\>8), in order to capture differences in the abundance
+signal of organisms in the input data.
 
-## Section
+Initially a kmer count dictionary is created. An efficient kmer counter
+is implemented in the java backend. It supports multi-threaded counting
+and small memory footprint. This is the most expensive operation of the
+module, due to the exponential size of kmer space (number of distinct
+kmers is 4^k). For example the number of distinct 20mers is one
+trillion.
 
-## Section
+Next an EM routine tries to identify Poisson mixtures in the kmer count
+spectrum. A Poisson distribution is fitted for each abundance cluster.
+The number of abundance clusters cannot be automatically determined and
+therefore needs to be user defined. The characteristics of each fitted
+Poisson distribution are linked to the abundance level of the taxa
+belonging to this abundance class and the their total genome size.
+
+For each abundance class and fitted Poisson distribution, a vector
+structure in the kmer spectrum space is constructed. A vector in the
+same kmer space is also constructed for each input fasta sequence,
+utilizing a tf\*idf weighting scheme.
+
+Finally, cosine distance is calculated between input sequence vectors
+and abundance class vectors. Each input sequence is assigned to the
+abundance class of least distance.
+
+## Composition based Binning
+
+The Composition based Binning module analyzes input sequences by short
+kmers (k\<8), to capture differences in the composition signal and finer
+details between similar organisms in the input data.
+
+This module does not involve an expensive kmer counting step, since
+short kmer space is relatively small. For example the number of distinct
+8mers is around 60 thousands.
+
+For every input sequence a vector is constructed in the kmer space. A
+kmeans clustering algorithms is run on the input vectors. Distance
+measure is calculated with Spearman footrule. An efficient
+multi-threaded implementation of the kmeans algorithm is provided by the
+java backend. The number of composition clusters cannot be automatically
+determined and therefore needs to be user defined.
+
+Finally, input sequences are assigned to the closest composition
+cluster.
+
+## 2step
