@@ -32,6 +32,13 @@ utilizing short kmers (k\<8).
 A JDK, at least 8, is required and needs to be present before installing
 `metabinR`.
 
+## Citation
+
+If you find my work useful, please cite the following publication : A
+scalable assembly-free variable selection algorithm for biomarker
+discovery from metagenomes.
+[10.1186/s12859-016-1186-3](https://doi.org/10.1186/s12859-016-1186-3)
+
 ## Installation
 
 To install `metabinR` package:

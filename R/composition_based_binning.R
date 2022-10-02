@@ -31,8 +31,7 @@
 #'     dryRun = TRUE, kMerSizeCB = 4
 #' )
 #' @author Anestis Gkanogiannis, \email{anestis@@gkanogiannis.com}
-#' @references Java implementation:
-#' \url{https://github.com/gkanogiannis/MetaTarget}
+#' @references \url{https://github.com/gkanogiannis/metabinR}
 #'
 composition_based_binning <- function(..., kMerSizeCB = 6,
                                     numOfClustersCB = 5, outputCB="CB.cluster",

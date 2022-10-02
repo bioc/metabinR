@@ -33,8 +33,7 @@
 #'     dryRun = TRUE, kMerSizeAB = 8
 #' )
 #' @author Anestis Gkanogiannis, \email{anestis@@gkanogiannis.com}
-#' @references Java implementation:
-#' \url{https://github.com/gkanogiannis/MetaTarget}
+#' @references \url{https://github.com/gkanogiannis/metabinR}
 #'
 
 abundance_based_binning <- function(..., eMin = 1, eMax = 0, kMerSizeAB = 10,

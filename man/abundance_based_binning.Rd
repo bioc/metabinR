@@ -62,8 +62,7 @@ abundance_based_binning(
 )
 }
 \references{
-Java implementation:
-\url{https://github.com/gkanogiannis/MetaTarget}
+\url{https://github.com/gkanogiannis/metabinR}
 }
 \author{
 Anestis Gkanogiannis, \email{anestis@gkanogiannis.com}
