@@ -28,12 +28,12 @@
 #' @examples
 #' composition_based_binning(
 #'     system.file("extdata", "reads.metagenome.fasta.gz",package = "metabinR"),
-#'     dryRun = TRUE, kMerSizeCB = 4
+#'     dryRun = TRUE, kMerSizeCB = 2
 #' )
 #' @author Anestis Gkanogiannis, \email{anestis@@gkanogiannis.com}
 #' @references \url{https://github.com/gkanogiannis/metabinR}
 #'
-composition_based_binning <- function(..., kMerSizeCB = 6,
+composition_based_binning <- function(..., kMerSizeCB = 4,
                                     numOfClustersCB = 5, outputCB="CB.cluster",
                                     keepQuality = FALSE, dryRun = FALSE,
                                     gzip = FALSE, numOfThreads = 1) {
@@ -59,7 +59,11 @@ composition_based_binning <- function(..., kMerSizeCB = 6,
                  "--input", paste(ins, collapse = " --input "), sep = " ")
     ret.str <- metatarget$go(rJava::.jarray(strsplit(cmd, "\\s+")[[1]]))
 
-    return(utils::read.table(text = ret.str, header = TRUE))
+    if(is.null(ret.str)) {
+        return(NULL)
+    } else {
+        return(utils::read.table(text = ret.str, header = TRUE))
+    }
 }
 
 composition_based_binning_checkParams <- function(ins, kMerSizeCB,

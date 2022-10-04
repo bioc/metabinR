@@ -6,7 +6,7 @@
 \usage{
 composition_based_binning(
   ...,
-  kMerSizeCB = 6,
+  kMerSizeCB = 4,
   numOfClustersCB = 5,
   outputCB = "CB.cluster",
   keepQuality = FALSE,
@@ -52,7 +52,7 @@ See \doi{10.1186/s12859-016-1186-3} for more details.
 \examples{
 composition_based_binning(
     system.file("extdata", "reads.metagenome.fasta.gz",package = "metabinR"),
-    dryRun = TRUE, kMerSizeCB = 4
+    dryRun = TRUE, kMerSizeCB = 2
 )
 }
 \references{

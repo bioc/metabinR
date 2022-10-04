@@ -160,7 +160,7 @@ public class MTxABxCB implements MetaBin{
 	    sequenceDistancesCB = new TIntObjectHashMap<double[]>();
 	    currCBid = new AtomicInteger(0);
 	    clustersDesign = new StringBuilder();
-	    clustersDesign.append("ABxCB\tAB\n");
+	    clustersDesign.append("ABxCB\tAB\tsize\n");
 	    
 	    //return String of assignments
 	    sb = new StringBuilder();
@@ -317,7 +317,7 @@ public class MTxABxCB implements MetaBin{
 		} 
 		catch (Exception e) {
 			e.printStackTrace(System.err);
-			return 0;
+			return 150;
 		}
 	}
 	
@@ -547,7 +547,7 @@ public class MTxABxCB implements MetaBin{
 				for(int seq_index : CBClusters[i].getMemberIndexes()) {
 					sequenceAssignmentsCB.put(sequencesIdsMapping.get(seq_index), currCBid.get());
 				}
-				clustersDesign.append(currCBid.get()+"\t"+currABid+"\n");
+				clustersDesign.append(currCBid.get()+"\t"+currABid+"\t"+CBClusters[i].getMemberIndexes().length+"\n");
 		    }
 		    //Parse CB distances
 		    for(Sequence s : frm.getStaticSequences()) {

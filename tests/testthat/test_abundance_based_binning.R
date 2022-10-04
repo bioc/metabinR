@@ -17,3 +17,12 @@ test_that("test parameters",{
     expect_error(abundance_based_binning(fastaFile, numOfThreads = 0))
     expect_error(abundance_based_binning(fastaFile, numOfThreads = "some"))
 })
+
+test_that("test return is a list",{
+    expect_type(
+        abundance_based_binning(
+            system.file("extdata", "reads.metagenome.fasta.gz",
+                        package = "metabinR"),
+            dryRun = TRUE, kMerSizeAB = 8, numOfClustersAB = 2),
+    "list")
+})

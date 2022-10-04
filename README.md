@@ -147,6 +147,14 @@ Finally, cosine distance is calculated between input sequence vectors
 and abundance class vectors. Each input sequence is assigned to the
 abundance class of least distance.
 
+This module outputs a fasta/fastq for each final cluster
+`prefix__AB.n.fasta`, containing sequences that were assigned to it.
+
+It outputs as well, a file `prefix__AB.assignments` with the information
+of the assignment of each sequence (column `read_id`) to which cluster
+(column `AB`) and the distance of the sequence to each cluster (columns
+`AB.n`).
+
 ## Composition based Binning
 
 The Composition based Binning module analyzes input sequences by short
@@ -167,4 +175,36 @@ determined and therefore needs to be user defined.
 Finally, input sequences are assigned to the closest composition
 cluster.
 
-## 2step
+This module outputs, as the AB module, a fasta/fastq for each final
+cluster `prefix__CB.n.fasta`, containing sequences that were assigned to
+it.
+
+It outputs as well, a file `prefix__CB.assignments` with the information
+of the assignment of each sequence (column `read_id`) to which cluster
+(column `CB`) and the distance of the sequence to each cluster (columns
+`CB.n`).
+
+## Hierarchical (2step ABxCB) Binning
+
+This module performs hierarchical binning on metagenomic samples,
+
+First it analyzes sequences by long kmer analysis (k\>8), as in .
+
+Then for each AB bin, it guesses the number of composition bins in it
+and performs composition based binning by short kmer analysis (k\<8), as
+in .
+
+This module outputs, as with the independent AB and CB modules, a
+fasta/fastq for each final cluster `prefix__ABxCB.n.fasta`, containing
+sequences that were assigned to it.
+
+Similarly to AB and CB module, it outputs as well, a file
+`prefix__ABxCB.assignments` with the information of the assignment of
+each sequence (column `read_id`) to which cluster (column `ABxCB`) and
+the distance of the sequence to each cluster (columns `ABxCB.n`).
+
+It also outputs a file `prefix__ABxCB.clustersDesign.tsv` with 3
+columns. Column `ABxCB` is the id of the final hierarchical (step AB and
+then CB) bin. Column `size` is the number of sequences that were
+assigned to each ABxCB bin. Column `AB` is the id of the parent
+Abundance based bin (AB) that each final ABxCB bin originated from.

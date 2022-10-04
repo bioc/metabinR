@@ -2,4 +2,5 @@
 
 export(abundance_based_binning)
 export(composition_based_binning)
+export(hierarchical_binning)
 importFrom(utils,citation)

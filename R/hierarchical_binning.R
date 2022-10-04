@@ -1,7 +1,12 @@
-#' Abundance based binning on metagenomic samples
+#' Hierarchical (ABxCB) binning on metagenomic samples
 #'
-#' This function performs abundance based binning on metagenomic samples,
-#' directly from FASTA or FASTQ files, by long kmer analysis (k>8).
+#' This function performs hierarchical binning on metagenomic samples,
+#' directly from FASTA or FASTQ files.
+#' First it analyzes sequences by long kmer analysis (k>8),
+#' as in \code{\link[metabinR]{abundance_based_binning}}.
+#' Then for each AB bin, it guesses the number of composition bins in it and
+#' performs composition based binning by short kmer analysis (k<8),
+#' as in \code{\link[metabinR]{composition_based_binning}}.
 #' See \doi{10.1186/s12859-016-1186-3} for more details.
 #'
 #' @param ... Input fasta/fastq files locations
@@ -9,8 +14,10 @@
 #' @param eMin Exclude kmers of less or equal count.
 #' @param eMax Exclude kmers of more or equal count.
 #' @param kMerSizeAB kmer length for Abundance based Binning.
+#' @param kMerSizeCB kmer length for Composition based Binning.
+#' @param genomeSize Average genome size of taxa in the metagenome data.
 #' @param numOfClustersAB Number of Clusters for Abundance based Binning.
-#' @param outputAB Output Abundance based Binning Clusters
+#' @param outputC Output Hierarchical Binning (ABxCB) Clusters
 #'     files location and prefix.
 #' @param keepQuality Keep fastq qualities on the output files.
 #'     (will produce .fastq)
@@ -22,39 +29,43 @@
 #'     Return value contains \code{numOfClustersAB + 2} columns.
 #' \itemize{
 #'     \item \code{read_id} : read identifier from fasta header
-#'     \item \code{AB} : read was assigned to this AB cluster index
-#'     \item \code{AB.n} : read to cluster AB.n distance
+#'     \item \code{ABxCB} : read was assigned to this ABxCB cluster index
+#'     \item \code{ABxCB.n} : read to cluster ABxCB.n distance
 #' }
 #' @export
 #'
 #' @examples
-#' abundance_based_binning(
+#' hierarchical_binning(
 #'     system.file("extdata", "reads.metagenome.fasta.gz",package = "metabinR"),
-#'     dryRun = TRUE, kMerSizeAB = 8
+#'     dryRun = TRUE, kMerSizeAB = 4, kMerSizeCB = 2
 #' )
 #' @author Anestis Gkanogiannis, \email{anestis@@gkanogiannis.com}
 #' @references \url{https://github.com/gkanogiannis/metabinR}
 #'
 
-abundance_based_binning <- function(..., eMin = 1, eMax = 0, kMerSizeAB = 10,
-                                    numOfClustersAB = 3, outputAB="AB.cluster",
+hierarchical_binning <- function(..., eMin = 1, eMax = 0, kMerSizeAB = 10,
+                                    kMerSizeCB = 4, genomeSize = 3000000,
+                                    numOfClustersAB =3, outputC="ABxCB.cluster",
                                     keepQuality = FALSE, dryRun = FALSE,
                                     gzip = FALSE, numOfThreads = 1) {
     ins <- unlist(list(...))
 
-    abundance_based_binning_checkParams(ins = ins, eMin = eMin, eMax = eMax,
-                                        kMerSizeAB = kMerSizeAB,
-                                        numOfClustersAB = numOfClustersAB,
-                                        outputAB = outputAB,
-                                        keepQuality = keepQuality,
-                                        dryRun = dryRun, gzip = gzip,
-                                        numOfThreads = numOfThreads)
+    hierarchical_binning_checkParams(ins = ins, eMin = eMin, eMax = eMax,
+                                            kMerSizeAB = kMerSizeAB,
+                                            kMerSizeCB = kMerSizeCB,
+                                            genomeSize = genomeSize,
+                                            numOfClustersAB = numOfClustersAB,
+                                            outputC = outputC,
+                                            keepQuality = keepQuality,
+                                            dryRun = dryRun, gzip = gzip,
+                                            numOfThreads = numOfThreads)
 
     metatarget <- rJava::.jnew(
-        class="fr/cea/ig/metatarget/MTxAB",
+        class="fr/cea/ig/metatarget/MTxABxCB",
         class.loader = .rJava.class.loader)
     cmd <- paste("--eMin", eMin, "--eMax", eMax, "--kMerSizeAB", kMerSizeAB,
-                 "--numOfClustersAB", numOfClustersAB, "--outputAB", outputAB,
+                 "--kMerSizeCB", kMerSizeCB, "--genomeSize", genomeSize,
+                 "--numOfClustersAB", numOfClustersAB, "--outputC", outputC,
                  ifelse(keepQuality, "--quality", ""),
                  ifelse(dryRun, "--dry", ""),
                  ifelse(gzip, "--gzip", ""),
@@ -69,10 +80,11 @@ abundance_based_binning <- function(..., eMin = 1, eMax = 0, kMerSizeAB = 10,
     }
 }
 
-abundance_based_binning_checkParams <- function(ins, eMin, eMax, kMerSizeAB,
-                                                numOfClustersAB, outputAB,
-                                                keepQuality, dryRun, gzip,
-                                                numOfThreads) {
+hierarchical_binning_checkParams <- function(ins, eMin, eMax, kMerSizeAB,
+                                                    kMerSizeCB, genomeSize,
+                                                    numOfClustersAB, outputC,
+                                                    keepQuality, dryRun, gzip,
+                                                    numOfThreads) {
     if (length(ins)==0 || list(NULL) %in% ins) {
         stop("No input fasta/fastq files were provided.")
     }
@@ -99,14 +111,23 @@ abundance_based_binning_checkParams <- function(ins, eMin, eMax, kMerSizeAB,
         stop("kMerSizeAB parameter must be positive integer >1 .")
     }
 
+    if (!is.numeric(kMerSizeCB) || (is.numeric(kMerSizeCB) && kMerSizeCB<2)) {
+        stop("kMerSizeCB parameter must be positive integer >1 .")
+    }
+
+    if (!is.numeric(genomeSize) ||
+        (is.numeric(genomeSize) && genomeSize<1)) {
+        stop("genomeSize parameter must be positive integer.")
+    }
+
     if (!is.numeric(numOfClustersAB) ||
         (is.numeric(numOfClustersAB) && numOfClustersAB<2)) {
         stop("numOfClustersAB parameter must be positive integer >1 .")
     }
 
-    if ((!is.null(outputAB) && !methods::is(outputAB, "character")) ||
-        (methods::is(outputAB, "character") && nchar(outputAB)==0)) {
-        stop("outputAB must be a prefix location.")
+    if ((!is.null(outputC) && !methods::is(outputC, "character")) ||
+        (methods::is(outputC, "character") && nchar(outputC)==0)) {
+        stop("outputC must be a prefix location.")
     }
 
     if(!is.logical(keepQuality)) {

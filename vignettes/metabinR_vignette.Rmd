@@ -197,7 +197,7 @@ The call returns a dataframe of the assigned composition cluster
 and distances to all clusters for each read :
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
 assignments.CB <- composition_based_binning(
-        system.file("extdata", "reads.metagenome.fasta.gz",package ="metabinR"),
+        system.file("extdata","reads.metagenome.fasta.gz",package ="metabinR"),
         numOfClustersCB = 10, 
         kMerSizeCB = 4, 
         dryRun = TRUE, 
@@ -225,6 +225,66 @@ tab <- as.data.frame(
 p_tab <- tableGrob(unname(tab))
 grid.arrange(p_tab)
 ```
+
+# Hierarchical (2step ABxCB) binning example
+
+Finally, we analyze the simulated metagenome sample 
+with the Hierarchical Binning module.
+
+The simulated metagenome contains 26664 Illumina reads (13332 pairs of 2x150bp) 
+that have been sampled from 10 bacterial genomes.
+The originating bacteria genome is therefore the true class information of
+each read in this example.
+
+We first get the read mapping information (from which bacterial genome each 
+read is originating from) :
+```{r, eval=TRUE, message=FALSE, warning=FALSE}
+reads.mapping <- fread(
+        system.file("extdata", "reads_mapping.tsv.gz",package = "metabinR")
+    )
+reads.mapping <- reads.mapping[order(reads.mapping$anonymous_read_id),]
+```
+In `reads.mapping` data.frame, column `anonymous_read_id` is the read id and 
+column `genome_id` is the original bacterial genome id.
+
+We perform Hierarchical Binning on the simulated reads, 
+for initially 2 abundance classes.
+Data is analyzed with 10-mers for the AB part 
+and with 4-mers for the following CB part.
+The call returns a dataframe of the assigned final hierarchical cluster (ABxCB) 
+and distances to all clusters for each read :
+```{r, eval=TRUE, message=FALSE, warning=FALSE}
+assignments.ABxCB <- hierarchical_binning(
+        system.file("extdata","reads.metagenome.fasta.gz",package ="metabinR"),
+        numOfClustersAB = 2,
+        kMerSizeAB = 10,
+        kMerSizeCB = 4, 
+        dryRun = TRUE, 
+        outputC = "vignette"
+    )
+assignments.ABxCB <- assignments.ABxCB[order(assignments.ABxCB$read_id),]
+```
+Note that read id of fasta header 
+matches `anonymous_read_id` of `reads.mapping`.
+
+Calculate `Vmeasure` 
+and other an extrinsic measures like `Homogeneity` and `completeness`.
+```{r, eval=TRUE, message=FALSE, warning=FALSE}
+eval.ABxCB.sabre <- sabre::vmeasure(
+                                    as.character(assignments.ABxCB$ABxCB),
+                                    as.character(reads.mapping$genome_id)
+                                )
+tab <- as.data.frame(
+    c(
+        Vmeasure = round(eval.ABxCB.sabre$v_measure,4),
+        Homogeneity = round(eval.ABxCB.sabre$homogeneity,4),
+        Completeness = round(eval.ABxCB.sabre$completeness,4)
+    )
+)
+p_tab <- tableGrob(unname(tab))
+grid.arrange(p_tab)
+```
+
 
 # Session Info
 ```{r setup}
