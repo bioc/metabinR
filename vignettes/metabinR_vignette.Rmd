@@ -164,11 +164,6 @@ p_tab <- tableGrob(unname(tab))
 grid.arrange(p, p_tab, ncol = 2)
 ```
 
-Clean files :
-```{r, eval=TRUE, message=FALSE, warning=FALSE}
-unlink("vignette*AB*")
-```
-
 # Composition based binning example
 
 In a similar way, we analyze the simulated metagenome sample 
@@ -285,6 +280,10 @@ p_tab <- tableGrob(unname(tab))
 grid.arrange(p_tab)
 ```
 
+Clean files :
+```{r, eval=TRUE, message=FALSE, warning=FALSE}
+unlink("vignette__*")
+```
 
 # Session Info
 ```{r setup}
