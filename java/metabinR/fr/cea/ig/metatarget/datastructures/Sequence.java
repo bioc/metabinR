@@ -41,27 +41,28 @@ public class Sequence {
 	private String name;
 	private String shortName;
 
-	private int abundanceCluster = -1;
+	private int assignedCluster = -1;
+	private double[] distancesToClusters = null;
 	
 	private TLongIntHashMap kmerCounts;
 	
 	private int[] ranks = null;
 		
-	public Sequence(int sequenceId, byte[] header, byte[] seq, boolean noCounts) {
+	public Sequence(int sequenceId, byte[] header, byte[] seq) {
 		this.sequenceId = sequenceId;
 		this.header = header;
 		this.seq = seq;
-		if(!noCounts) kmerCounts = new TLongIntHashMap();
+		this.kmerCounts = new TLongIntHashMap();
 	}
 	
-	public Sequence(int sequenceId, byte[] header, byte[] seq, byte[] qual, boolean noCounts) {
+	public Sequence(int sequenceId, byte[] header, byte[] seq, byte[] qual) {
 		this.sequenceId = sequenceId;
 		this.header = header;
 		this.seq = seq;
 		this.qual = qual;
-		if(!noCounts) kmerCounts = new TLongIntHashMap();
+		this.kmerCounts = new TLongIntHashMap();
 	}
-	
+
 	public void initRanks(Map<Long, Integer> spaceRanks){
 		if(ranks == null){
 			int spaceSize = spaceRanks.size();
@@ -195,7 +196,7 @@ public class Sequence {
 		if(shortName==null) {
 			try {
 				shortName = new String(getHeader()).split("\\s+")[0].substring(1).
-						replaceAll("[^A-Za-z0-9_\\.\\+\\-\\=\\|]", " ").
+						replaceAll("[^A-Za-z0-9_\\.\\+\\-\\=\\|/]", " ").
 						replaceAll("\\s+", " ");
 			} 
 			catch (Exception e) {
@@ -213,12 +214,20 @@ public class Sequence {
 		return sb.toString();
 	}
 	
-	public int getAbundanceCluster() {
-		return abundanceCluster;
+	public int getAssignedCluster() {
+		return assignedCluster;
 	}
 
-	public void setAbundanceCluster(int abundanceCluster) {
-		this.abundanceCluster = abundanceCluster;
+	public void setAssignedCluster(int assignedCluster) {
+		this.assignedCluster = assignedCluster;
+	}
+	
+	public double[] getDistancesToClusters() {
+		return distancesToClusters;
+	}
+
+	public void setDistancesToClusters(double[] distancesToClusters) {
+		this.distancesToClusters = distancesToClusters;
 	}
 
 	public char charAt(int index) {

@@ -1,3 +1,24 @@
+/*
+ *
+ * MetaTarget Dictionary
+ *
+ * Copyright (C) 2022 Anestis Gkanogiannis <anestis@gkanogiannis.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, 
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
+ */
 package fr.cea.ig.metatarget.datastructures;
 
 import fr.cea.ig.metatarget.utils.Utils;
@@ -7,11 +28,12 @@ import gnu.trove.map.hash.TIntLongHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.google.common.collect.MapMaker;
+//import com.google.common.collect.MapMaker;
 
 public class Dictionary implements DictionaryInterface{
 	@SuppressWarnings("unused")
@@ -36,13 +58,26 @@ public class Dictionary implements DictionaryInterface{
 		_excludeMax = excludeMax;
 		
 		System.out.println(Utils.time()+" Using Dictionary ORIGINAL");
-		kmerCountMap = new MapMaker().concurrencyLevel(concurrencyLevel).initialCapacity(initialCapacity).makeMap();
+		kmerCountMap = new ConcurrentHashMap<Long, AtomicInteger>(initialCapacity, 0.75f, concurrencyLevel);
+		//kmerCountMap = new MapMaker().concurrencyLevel(concurrencyLevel).initialCapacity(initialCapacity).makeMap();
 		//kmerCountMap = Utils.getDB().getTreeMap("dictionary");
 	
 		minKmerCode = Long.MAX_VALUE;
 		maxKmerCode = Long.MIN_VALUE;
 	}
 	
+	public long getUniqueKmers() {
+		return uniqueKmers;
+	}
+
+	public long getDistinctKmers() {
+		return distinctKmers;
+	}
+
+	public long getTotalKmers() {
+		return totalKmers;
+	}
+
 	public void clear(){
 		if(countsHisto!=null){
 			countsHisto.clear();
@@ -166,10 +201,10 @@ public class Dictionary implements DictionaryInterface{
 		return countsHisto;
 	}
 	
-	public ClusterVectorTrove[] createABClusterVectors(ClusterPoisson[] clusterPoissons, int excludeMin, int excludeMax){
+	public ClusterVectorAB[] createABClusterVectors(ClusterPoisson[] clusterPoissons, int excludeMin, int excludeMax){
 		int numberOfClusters = clusterPoissons.length;
 		System.out.println(Utils.time()+" START of Creating AB Cluster Vectors");
-		ClusterVectorTrove[] clusterVectors = new ClusterVectorTrove[numberOfClusters];
+		ClusterVectorAB[] clusterVectors = new ClusterVectorAB[numberOfClusters];
 		try {
 			CountDownLatch doneSignal = new CountDownLatch(numberOfClusters);
 			for (int i = 0; i < numberOfClusters; i++){
@@ -191,14 +226,14 @@ public class Dictionary implements DictionaryInterface{
 
 		private int clusterId;
 		private ClusterPoisson[] clusterPoissons;
-		private ClusterVectorTrove[] clusterVectors;
+		private ClusterVectorAB[] clusterVectors;
 		private CountDownLatch doneSignal;
 		private int excludeMin;
 		private int excludeMax;
 		@SuppressWarnings("unused")
 		private Dictionary dictionary;
 		
-		private CreateABClusterVectorThread(int clusterId, ClusterPoisson[] clusterPoissons, ClusterVectorTrove[] clusterVectors, CountDownLatch doneSignal, int excludeMin, int excludeMax, Dictionary dictionary){
+		private CreateABClusterVectorThread(int clusterId, ClusterPoisson[] clusterPoissons, ClusterVectorAB[] clusterVectors, CountDownLatch doneSignal, int excludeMin, int excludeMax, Dictionary dictionary){
 			this.clusterId = clusterId;
 			this.clusterPoissons = clusterPoissons;
 			this.clusterVectors = clusterVectors;
@@ -222,7 +257,7 @@ public class Dictionary implements DictionaryInterface{
 			//System.out.println(Utils.time()+"\tExcpected Vector Size = "+expectedSize);
 			//System.out.println(Utils.time()+"\tsplitKmerCode = "+(maxKmerCode+minKmerCode)/2L);
 			
-			ClusterVectorTrove cv = new ClusterVectorTrove(expectedSize, (maxKmerCode+minKmerCode)/2L);
+			ClusterVectorAB cv = new ClusterVectorAB(expectedSize, (maxKmerCode+minKmerCode)/2L);
 			//ClusterVectorAbstract cv = new ClusterVectorKoloboke(expectedSize, (maxKmerCode+minKmerCode)/2L);
 			//ClusterVectorAbstract cv = new ClusterVectorHPPC(expectedSize);
 			//ClusterVectorAbstract cv = new ClusterVectorGS(expectedSize);

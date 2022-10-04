@@ -1,6 +1,6 @@
 /*
  *
- * MetaTarget Holder
+ * MetaTarget MetaBin
  *
  * Copyright (C) 2022 Anestis Gkanogiannis <anestis@gkanogiannis.com>
  *
@@ -19,20 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  *
  */
-package fr.cea.ig.metatarget.utils;
+package fr.cea.ig.metatarget;
 
-public class Holder<T> {
-    private T value;
+import fr.cea.ig.metatarget.datastructures.Sequence;
 
-    public Holder(T value) {
-        setValue(value);
-    }
+public interface MetaBin {
 
-    public T getValue() {
-        return value;
-    }
-
-    public void setValue(T value) {
-        this.value = value;
-    }
+	public boolean saveSeqToCluster(Sequence sequence, boolean keepQualities);
 }

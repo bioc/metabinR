@@ -25,18 +25,21 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import fr.cea.ig.metatarget.utils.Utils;
+
 public class FastaManager implements Runnable{
 	private BlockingQueue<Sequence> sequences = null;
-	private ConcurrentHashMap<Integer,Sequence> staticSequences = null;
-	private List<Integer> sequenceIds = null;
-	private List<String> sequenceNames = null;
+	private List<Sequence> staticSequences = null;
+	//private List<Integer> sequenceIds = null;
+	//private List<String> sequenceNames = null;
 	
+	private AtomicInteger lineCount = new AtomicInteger(0);
+	private AtomicInteger lineMilCount = new AtomicInteger(0);
 	private AtomicInteger currSequenceId = new AtomicInteger(0);
 	
 	public boolean isFastq = false;
@@ -45,36 +48,35 @@ public class FastaManager implements Runnable{
 	private boolean done = false;
 	private CountDownLatch startSignal = null;
 	private CountDownLatch doneSignal = null;
-	private boolean onlyStatic = false;
 	
-	public FastaManager(boolean keepQualities, List<String> inputFileNames, CountDownLatch startSignal, CountDownLatch doneSignal, boolean onlyStatic) {
+	public FastaManager(boolean keepQualities, List<String> inputFileNames, CountDownLatch startSignal, CountDownLatch doneSignal) {
 		this.keepQualities = keepQualities;
 		this.inputFileNames = inputFileNames;
 		this.startSignal = startSignal;
 		this.doneSignal = doneSignal;
-		this.onlyStatic = onlyStatic;
 		
 		this.sequences = new LinkedBlockingQueue<Sequence>();
-		this.staticSequences = new ConcurrentHashMap<Integer,Sequence>();
-		this.sequenceIds = new ArrayList<Integer>();
-		this.sequenceNames = new ArrayList<String>();
+		this.staticSequences = new ArrayList<Sequence>();
+		//this.sequenceIds = new ArrayList<Integer>();
+		//this.sequenceNames = new ArrayList<String>();
 	}
 	
 	public void clear(){
 		if(sequences!=null) sequences.clear();
 		sequences = new LinkedBlockingQueue<Sequence>();
 		if(staticSequences!=null) staticSequences.clear();
-		staticSequences = new ConcurrentHashMap<Integer,Sequence>();
-		if(sequenceIds!=null) sequenceIds.clear();
-		sequenceIds = new ArrayList<Integer>();
-		if(sequenceNames!=null) sequenceNames.clear();
-		sequenceNames = new ArrayList<String>();
+		staticSequences = new ArrayList<Sequence>();
+		//if(sequenceIds!=null) sequenceIds.clear();
+		//sequenceIds = new ArrayList<Integer>();
+		//if(sequenceNames!=null) sequenceNames.clear();
+		//sequenceNames = new ArrayList<String>();
 	}
 	
-	public final ConcurrentHashMap<Integer,Sequence> getStaticSequences(){
+	public final List<Sequence> getStaticSequences(){
 		return staticSequences;
 	}
 	
+	/*
 	public final List<Integer> getSequenceIds() {
 		return sequenceIds;
 	}
@@ -82,6 +84,7 @@ public class FastaManager implements Runnable{
 	public final List<String> getSequenceNames() {
 		return sequenceNames;
 	}
+	*/
 	
 	public boolean hasMore() {
 		if(!done) return true;
@@ -92,29 +95,19 @@ public class FastaManager implements Runnable{
 		try {
 			if(sequence==null || sequence.getSeq()==null || sequence.getHeader()==null) return false;
 			
-			if(onlyStatic) {
-				staticSequences.put(sequence.getSequenceId(), sequence);
-				sequenceIds.add(sequence.getSequenceId());
-			}
-			else {
-				sequences.put(sequence);
-				staticSequences.put(sequence.getSequenceId(), sequence);
-				sequenceIds.add(sequence.getSequenceId());
-				sequenceNames.add(sequence.getShortName());
-			}
+			sequences.put(sequence);
+			staticSequences.add(sequence);
+			//sequenceIds.add(sequence.getSequenceId());
+			//sequenceNames.add(sequence.getShortName());
+			
 			return true;
 		} 
 		catch (Exception e) {
-			if(onlyStatic) {
-				staticSequences.remove(sequence.getSequenceId());
-				sequenceIds.remove(sequence.getSequenceId());
-			}
-			else {
-				sequences.remove(sequence);
-				staticSequences.remove(sequence.getSequenceId());
-				sequenceIds.remove(sequence.getSequenceId());
-				sequenceNames.remove(sequence.getShortName());
-			}
+			sequences.remove(sequence);
+			staticSequences.remove(sequence);
+			//sequenceIds.remove(sequence.getSequenceId());
+			//sequenceNames.remove(sequence.getShortName());
+
 			return false;
 		}
 	}
@@ -137,8 +130,8 @@ public class FastaManager implements Runnable{
 			boolean ret = true;
 			int seqId = currSequenceId.incrementAndGet();
 			Sequence sequence;
-			if(qual==null) sequence = new Sequence(seqId, header, seq, onlyStatic);
-			else sequence = new Sequence(seqId, header, seq, qual, onlyStatic);
+			if(qual==null) sequence = new Sequence(seqId, header, seq);
+			else sequence = new Sequence(seqId, header, seq, qual);
 			//System.err.println(sequence.toString());
 			if(!putSequence(sequence)) {
 				currSequenceId.decrementAndGet();
@@ -175,7 +168,11 @@ public class FastaManager implements Runnable{
 		    FastaIterator<byte[]> iterator = FastaIterator.create(inputFiles);
 		    for (List<byte[]> reads_chunk : iterator) {
 		    	if(reads_chunk!=null) {
-		    		System.err.println(GeneralTools.time()+" FastaManager: Chunk with "+reads_chunk.size()+" lines.");
+		    		lineCount.addAndGet(reads_chunk.size());
+					if(lineCount.get() > 500000*lineMilCount.get()){
+						lineMilCount.incrementAndGet();
+						System.out.println(Utils.time()+" FastaManager: lines read "+lineCount.get());
+					}
 			    	boolean on_qual = false;
 		    		byte[] header = null;
 		    		ArrayList<byte[]> seq = new ArrayList<byte[]>();

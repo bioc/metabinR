@@ -25,20 +25,24 @@ import fr.cea.ig.metatarget.utils.Utils;
 import gnu.trove.list.TIntList;
 import gnu.trove.list.array.TIntArrayList;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.MapMaker;
+//import com.google.common.collect.HashMultimap;
+//import com.google.common.collect.MapMaker;
 
 public class DictionaryFilter {
 
 	private  ConcurrentMap<Long, TIntList> kmer2sequenceMap;
-	private  HashMultimap<Integer, Integer> sequence2sequenceMap;
+	private  HashMap<Integer, Set<Integer>> sequence2sequenceMap;
 	
 	public DictionaryFilter(int initialCapacity, int concurrencyLevel){
-		kmer2sequenceMap = new MapMaker().concurrencyLevel(concurrencyLevel).initialCapacity(initialCapacity).makeMap();
+		kmer2sequenceMap = new ConcurrentHashMap<Long, TIntList>(initialCapacity, 0.75f, concurrencyLevel);
+		//kmer2sequenceMap = new MapMaker().concurrencyLevel(concurrencyLevel).initialCapacity(initialCapacity).makeMap();
 	}
 	
 	/*
@@ -77,7 +81,8 @@ public class DictionaryFilter {
 			sequence2sequenceMap.clear();
 			sequence2sequenceMap = null;
 		}
-		sequence2sequenceMap = HashMultimap.create();
+		sequence2sequenceMap = new HashMap<Integer, Set<Integer>>();
+		//sequence2sequenceMap = HashMultimap.create();
 			
 		/*
 		//PARALLEL
@@ -103,7 +108,12 @@ public class DictionaryFilter {
 			//list.sort();
 			for(int i=0; i<list.size(); i++){
 				for(int j=i+1; j<list.size(); j++){
-					sequence2sequenceMap.get(list.get(i)).add(list.get(j));
+					Set<Integer> innerSet = sequence2sequenceMap.get(list.get(i));
+					if (innerSet == null) {
+					    innerSet = new HashSet<Integer>();
+					    sequence2sequenceMap.put(list.get(i), innerSet);
+					}
+					innerSet.add(list.get(j));
 				}
 			}
 		}

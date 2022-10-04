@@ -1,3 +1,24 @@
+/*
+ *
+ * MetaTarget SequencekMeansCentroid
+ *
+ * Copyright (C) 2022 Anestis Gkanogiannis <anestis@gkanogiannis.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, 
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
+ */
 package fr.cea.ig.metatarget.kmeans;
 
 import java.util.Map;
@@ -9,13 +30,13 @@ import fr.cea.ig.metatarget.utils.Utils;
 import gnu.trove.iterator.TLongIntIterator;
 import gnu.trove.map.hash.TLongDoubleHashMap;
 
-public class ReadkMeansCentroid {
+public class SequencekMeansCentroid {
 	
 	private TLongDoubleHashMap kmerValues = null;
 	
 	private int[] ranks = null;
 	
-	public ReadkMeansCentroid(Sequence read) {
+	public SequencekMeansCentroid(Sequence read) {
 		initKmerValues();
 		addWith(read);
 	}
@@ -108,7 +129,7 @@ public class ReadkMeansCentroid {
 		}
 	}
 	
-	public static double distanceSpearman(ReadkMeansCentroid center, Sequence read, Map<Long, Integer> spaceRanks) {
+	public static double distanceSpearman(SequencekMeansCentroid center, Sequence read, Map<Long, Integer> spaceRanks) {
     	double distance = 0.0;
     	int spaceSize = spaceRanks.size();
     	for(int i=0; i<spaceSize; i++){
@@ -117,7 +138,7 @@ public class ReadkMeansCentroid {
         return (double)distance;// /(double)(spaceSize*spaceSize);
     }
 	
-    public static double distanceEuclid(ReadkMeansCentroid center, Sequence read, Map<Long, Integer> spaceRanks) {
+    public static double distanceEuclid(SequencekMeansCentroid center, Sequence read, Map<Long, Integer> spaceRanks) {
     	double sumSquared = 0.0;
     	for(long kmerCode : spaceRanks.keySet()){
     		double v = (double)read.getCountForKmerCode(kmerCode) - center.getValueForKmerCode(kmerCode);

@@ -28,7 +28,7 @@ import gnu.trove.iterator.TLongIntIterator;
 
 public class VectorUtils {
 
-	public static double cosineSequence2Cluster(Sequence sequence, ClusterVectorTrove clusterVector) {
+	public static double cosineSequence2Cluster(Sequence sequence, ClusterVectorAB clusterVector) {
 		if(clusterVector == null || clusterVector.isEmpty()){
 			return Double.NEGATIVE_INFINITY;
 		}

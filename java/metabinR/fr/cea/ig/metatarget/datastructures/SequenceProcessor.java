@@ -24,6 +24,7 @@ package fr.cea.ig.metatarget.datastructures;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import fr.cea.ig.metatarget.MetaBin;
 import fr.cea.ig.metatarget.utils.Coder;
 import fr.cea.ig.metatarget.utils.Utils;
 
@@ -34,31 +35,34 @@ public class SequenceProcessor implements Runnable {
 	private static AtomicInteger taskCount = new AtomicInteger(0);
 	
 	private final int id = taskCount.getAndIncrement();
+	private MetaBin caller;
 	private Dictionary dictionary = null;
 	private FastaManager frm = null;
 	private MODE mode = null;
 	private int k;
 	private CountDownLatch startSignal = null;
 	private CountDownLatch doneSignal = null;
-	private Object[] parametersSequenceVectorClear = null;
+	private Object[] parametersExtra = null;
 	
-	private ClusterVectorTrove[] ABClusterVectors = null;
+	private ClusterVectorAB[] ABClusterVectors = null;
 
 	public static enum MODE {
-		KMERCOUNT,
-		KMERCOUNT_SEQUENCEVECTORBUILD,
-		SEQUENCEVECTORBUILD,
-		ABBINNING
+		AB_KMERCOUNT,
+		AB_BINNING,
+		CB_SEQUENCEVECTORBUILD,
+		CB_BINNING,
+		KMERCOUNT_SEQUENCEVECTORBUILD
 	}
 	
-	public SequenceProcessor(Dictionary dictionary, FastaManager frm, MODE mode, int k, CountDownLatch startSignal, CountDownLatch doneSignal, Object[] parametersSequenceVectorClear) {
+	public SequenceProcessor(MetaBin caller, Dictionary dictionary, FastaManager frm, MODE mode, int k, CountDownLatch startSignal, CountDownLatch doneSignal, Object[] parametersExtra) {
+		this.caller = caller;
 		this.dictionary = dictionary;
 		this.frm = frm;
 		this.mode = mode;
 		this.k = k;
 		this.startSignal = startSignal;
 		this.doneSignal = doneSignal;
-		this.parametersSequenceVectorClear = parametersSequenceVectorClear;
+		this.parametersExtra = parametersExtra;
 	}
 	
 	public static void resetCounters(){
@@ -74,7 +78,7 @@ public class SequenceProcessor implements Runnable {
 		return mode;
 	}
 
-	public void setABClusterVectors(ClusterVectorTrove[] ABClusterVectors) {
+	public void setABClusterVectors(ClusterVectorAB[] ABClusterVectors) {
 		this.ABClusterVectors = ABClusterVectors;
 	}
 
@@ -123,17 +127,20 @@ public class SequenceProcessor implements Runnable {
 //				}
 
 				switch(mode){
-					case KMERCOUNT :
-						processSequence_KMERCOUNT(sequence);
+					case AB_KMERCOUNT :
+						processSequence_AB_KMERCOUNT(sequence);
+						break;
+					case AB_BINNING :
+						processSequence_AB_BINNING(sequence);
+						break;
+					case CB_SEQUENCEVECTORBUILD :
+						processSequence_CB_SEQUENCEVECTORBUILD(sequence);
+						break;
+					case CB_BINNING :
+						processSequence_CB_BINNING(sequence);
 						break;
 					case KMERCOUNT_SEQUENCEVECTORBUILD :
 						System.out.println("UNSUPPORTED");
-						break;
-					case SEQUENCEVECTORBUILD :
-						processSequence_SEQUENCEVECTORBUILD(sequence);
-						break;
-					case ABBINNING :
-						processSequence_ABBINNING(sequence);
 						break;
 					default:
 						System.err.println(Utils.time()+" Mode+\"" + mode.toString() + "\" not known.");
@@ -147,7 +154,7 @@ public class SequenceProcessor implements Runnable {
 		}
 	}
 	
-	private void processSequence_KMERCOUNT(Sequence sequence){
+	private void processSequence_AB_KMERCOUNT(Sequence sequence){
 		try{
 			sequenceCount.incrementAndGet();
 			if(sequenceCount.get() % 100000 == 0){
@@ -163,6 +170,104 @@ public class SequenceProcessor implements Runnable {
 				//reverse
 				//kmerCode = Coder.encodeToLong(sequence, i, i+k, true);
 				dictionary.insert(Coder.encodeToLong(sequence, i, i+k, true));
+			}
+			
+			sequence.clearFull();
+		}
+		catch(Exception e){
+			e.printStackTrace();
+		}
+	}
+	
+	private void processSequence_AB_BINNING(Sequence sequence){
+		try{
+			sequenceCount.incrementAndGet();
+			if(sequenceCount.get() % 100000 == 0){
+				System.out.println(Utils.time()+" SequenceProcessor: "+id+"\t"+mode.toString()+" "+sequenceCount.get());
+			}
+			
+			//long kmerCode;
+			
+			for(int i=0; i+k<=sequence.getLength(); i++){				
+				//kmerCode = Coder.encodeToLong(sequence, i, i+k, false);
+				sequence.insertKmerCount(Coder.encodeToLong(sequence, i, i+k, false), 1);
+				
+				//reverse
+				//kmerCode = Coder.encodeToLong(sequence, i, i+k, true);
+				sequence.insertKmerCount(Coder.encodeToLong(sequence, i, i+k, true), 1);			
+			}
+			
+			//Double maxSim = Double.NEGATIVE_INFINITY;
+			double maxSim = 0.0;
+			int abundanceCluster = -1;
+			double similarity;
+			double[] distances = new double[ABClusterVectors.length];
+			for(int c=0; c<ABClusterVectors.length; c++){
+				similarity = VectorUtils.cosineSequence2Cluster(sequence, ABClusterVectors[c]);
+				if( similarity > maxSim){
+					maxSim = similarity;
+					abundanceCluster = (c+1);
+				}
+				distances[c] = similarity;
+			}
+			sequence.setAssignedCluster(abundanceCluster);
+			sequence.setDistancesToClusters(distances);
+			
+			if(parametersExtra!=null && ((Boolean)parametersExtra[0])==true){
+				caller.saveSeqToCluster(sequence, true);
+			}
+			else {
+				caller.saveSeqToCluster(sequence, false);
+			}
+			
+			sequence.clearFull();
+		}
+		catch(Exception e){
+			e.printStackTrace();
+		}
+	}
+	
+	private void processSequence_CB_SEQUENCEVECTORBUILD(Sequence sequence){
+		try{
+			sequenceCount.incrementAndGet();
+			if(sequenceCount.get() % 100000 == 0){
+				System.out.println(Utils.time()+" SequenceProcessor: "+id+"\t"+mode.toString()+" "+sequenceCount.get());
+			}
+			
+			//long kmerCode;
+			
+			for(int i=0; i+k<=sequence.getLength(); i++){				
+				//kmerCode = Coder.encodeToLong(sequence, i, i+k, false);
+				sequence.insertKmerCount(Coder.encodeToLong(sequence, i, i+k, false), 1);
+				
+				//reverse
+				//kmerCode = Coder.encodeToLong(sequence, i, i+k, true);
+				sequence.insertKmerCount(Coder.encodeToLong(sequence, i, i+k, true), 1);
+			}
+			
+			//(boolean)parametersExtra[0] true, clear header and sequence
+			//(boolean)parametersExtra[0] false, keep header and sequence
+			//if(parametersExtra!=null && ((Boolean)parametersExtra[0])==true){
+				sequence.clearHeadSeq();
+			//}
+		}
+		catch(Exception e){
+			e.printStackTrace();
+		}
+	}
+	
+	private void processSequence_CB_BINNING(Sequence sequence){
+		try{
+			sequenceCount.incrementAndGet();
+			if(sequenceCount.get() % 100000 == 0){
+				System.out.println(Utils.time()+" SequenceProcessor: "+id+"\t"+mode.toString()+" "+sequenceCount.get());
+			}
+			
+			if(parametersExtra!=null && ((Boolean)parametersExtra[0])==true){
+				caller.saveSeqToCluster(sequence, true);
+			}
+			else {
+				caller.saveSeqToCluster(sequence, false);
 			}
 			
 			sequence.clearFull();
@@ -210,73 +315,5 @@ public class SequenceProcessor implements Runnable {
 		}
 	}
 	*/
-	
-	private void processSequence_SEQUENCEVECTORBUILD(Sequence sequence){
-		try{
-			sequenceCount.incrementAndGet();
-			if(sequenceCount.get() % 100000 == 0){
-				System.out.println(Utils.time()+" SequenceProcessor: "+id+"\t"+mode.toString()+" "+sequenceCount.get());
-			}
-			
-			long kmerCode;
-			
-			for(int i=0; i+k<=sequence.getLength(); i++){				
-				//kmerCode = Coder.encodeToLong(sequence, i, i+k, false);
-				sequence.insertKmerCount(Coder.encodeToLong(sequence, i, i+k, false), 1);
-				
-				//reverse
-				//kmerCode = Coder.encodeToLong(sequence, i, i+k, true);
-				sequence.insertKmerCount(Coder.encodeToLong(sequence, i, i+k, true), 1);
-			}
-			
-			//(boolean)parametersSequenceVectorClear[0] true, clear header and sequence
-			//(boolean)parametersSequenceVectorClear[0] false, keep header and sequence
-			if(parametersSequenceVectorClear!=null && ((Boolean)parametersSequenceVectorClear[0])==true){
-				sequence.clearHeadSeq();
-			}
-		}
-		catch(Exception e){
-			e.printStackTrace();
-		}
-	}
-	
-	private void processSequence_ABBINNING(Sequence sequence){
-		try{
-			sequenceCount.incrementAndGet();
-			if(sequenceCount.get() % 100000 == 0){
-				System.out.println(Utils.time()+" SequenceProcessor: "+id+"\t"+mode.toString()+" "+sequenceCount.get());
-			}
-			
-			//long kmerCode;
-			
-			for(int i=0; i+k<=sequence.getLength(); i++){				
-				//kmerCode = Coder.encodeToLong(sequence, i, i+k, false);
-				sequence.insertKmerCount(Coder.encodeToLong(sequence, i, i+k, false), 1);
-				
-				//reverse
-				//kmerCode = Coder.encodeToLong(sequence, i, i+k, true);
-				sequence.insertKmerCount(Coder.encodeToLong(sequence, i, i+k, true), 1);			
-			}
-			
-			//Double maxSim = Double.NEGATIVE_INFINITY;
-			double maxSim = 0.0;
-			int abundanceCluster = -1;
-			double similarity;
-			for(int i=0; i<ABClusterVectors.length; i++){
-				similarity = VectorUtils.cosineSequence2Cluster(sequence, ABClusterVectors[i]);
-				if( similarity > maxSim){
-					maxSim = similarity;
-					abundanceCluster = i;
-				}
-			}
-			
-			sequence.setAbundanceCluster(abundanceCluster);
-			
-			sequence.clearFull();
-		}
-		catch(Exception e){
-			e.printStackTrace();
-		}
-	}
 	
 }

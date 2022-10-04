@@ -1,6 +1,6 @@
 /*
  *
- * MetaTarget Holder
+ * MetaTarget ClusterVectorCB
  *
  * Copyright (C) 2022 Anestis Gkanogiannis <anestis@gkanogiannis.com>
  *
@@ -19,20 +19,26 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  *
  */
-package fr.cea.ig.metatarget.utils;
+package fr.cea.ig.metatarget.kmeans;;
 
-public class Holder<T> {
-    private T value;
+public class ClusterVectorCB {
 
-    public Holder(T value) {
-        setValue(value);
+    // Indices of the member reads.
+    private int[] mMemberIndexes;
+    // The cluster center.
+    private SequencekMeansCentroid mCenter;
+    
+    public ClusterVectorCB(int[] memberIndexes, SequencekMeansCentroid center) {
+        mMemberIndexes = memberIndexes;
+        mCenter = center;
     }
-
-    public T getValue() {
-        return value;
+    
+    public int[] getMemberIndexes() {
+        return mMemberIndexes;
     }
-
-    public void setValue(T value) {
-        this.value = value;
+    
+    public SequencekMeansCentroid getCenter() {
+        return mCenter;
     }
+    
 }

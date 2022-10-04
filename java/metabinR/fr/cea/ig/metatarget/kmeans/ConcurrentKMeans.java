@@ -1,3 +1,24 @@
+/*
+ *
+ * MetaTarget ConcurrentKMeans
+ *
+ * Copyright (C) 2022 Anestis Gkanogiannis <anestis@gkanogiannis.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, 
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ *
+ */
 package fr.cea.ig.metatarget.kmeans;
 
 import java.util.*;
@@ -27,8 +48,8 @@ public class ConcurrentKMeans implements Runnable {
     // The cluster assignment for read n is found in mClusterAssignments[n] where the N reads are numbered 0 ... (N-1)
     private int[] mClusterAssignments;
 
-    // Array holding the reads to be clustered.
-    private List<Sequence> mReads;
+    // Array holding the sequences to be clustered.
+    private List<Sequence> mSequences;
     
     // The desired number of clusters and maximum number of iterations.
     private int mK, mMaxIterations;
@@ -43,7 +64,7 @@ public class ConcurrentKMeans implements Runnable {
     private SubtaskManager mSubtaskManager;
     
     // An array of Cluster objects: the output of k-means.
-    private Cluster[] mClusters;
+    private ClusterVectorCB[] mClusters;
     
     private CountDownLatch startSignal = null;
 	private CountDownLatch doneSignal = null;
@@ -55,18 +76,18 @@ public class ConcurrentKMeans implements Runnable {
     /**
      * Constructor
      * 
-     * @param reads array containing the reads to be clustered.
-     * @param k  the number of desired clusters.
+     * @param sequences array containing the sequences to be clustered.
+     * @param kCB  the number of desired clusters.
      * @param maxIterations the maximum number of clustering iterations.
      * @param randomSeed seed used with the random number generator.
      * @param threadCount the number of threads to be used for computing time-consuming steps.
      */
-    public ConcurrentKMeans(int numOfClustersCB, int kCB, List<Sequence> reads, int maxIterations, long randomSeed, int threadCount, CountDownLatch startSignal, CountDownLatch doneSignal){
+    public ConcurrentKMeans(int numOfClustersCB, int kCB, List<Sequence> sequences, int maxIterations, long randomSeed, int threadCount, CountDownLatch startSignal, CountDownLatch doneSignal){
     	ConcurrentKMeans.numOfClustersCB = numOfClustersCB;
     	ConcurrentKMeans.kCB = kCB;
-    	mReads = reads;
+    	mSequences = sequences;
     	// Can't have more clusters than reads.
-        mK = Math.min(ConcurrentKMeans.numOfClustersCB, mReads.size());
+        mK = Math.min(ConcurrentKMeans.numOfClustersCB, mSequences.size());
         mMaxIterations = maxIterations;
         mRandomSeed = randomSeed;
         mThreadCount = threadCount;
@@ -88,7 +109,7 @@ public class ConcurrentKMeans implements Runnable {
      * 
      * @return an array of Cluster objects.
      */
-    public Cluster[] getClusters() {
+    public ClusterVectorCB[] getClusters() {
         return mClusters;
     }
      
@@ -156,6 +177,8 @@ public class ConcurrentKMeans implements Runnable {
             
             System.out.println("...end.\t"+(executionTime/1000.0)+" seconds.");
             
+            finalDistances();
+            
             doneSignal.countDown();
         } 
         catch (Throwable t) {
@@ -169,28 +192,37 @@ public class ConcurrentKMeans implements Runnable {
         }
     }
 
-    /**
+    private void finalDistances() {
+		for(int i=0; i<mSequences.size(); i++) {
+			double[] distances = new double[numOfClustersCB];
+			for(int c=0; c<numOfClustersCB; c++)
+				distances[c] = mDistanceCache[i][c];
+			mSequences.get(i).setDistancesToClusters(distances);
+		}
+	}
+
+	/**
      * Randomly select reads to be the initial cluster centers.
      */
     private void initCenters() {
         Random random = new Random(mRandomSeed);
         
-        int readCount = mReads.size();
+        int sequenceCount = mSequences.size();
 
         // The array mClusterAssignments is used only to keep track of the cluster membership for each read.  
         // The method makeAssignments() uses it to keep track of the number of moves.
         if (mClusterAssignments == null) {
-            mClusterAssignments = new int[readCount];
+            mClusterAssignments = new int[sequenceCount];
             // Initialize to -1 to indicate that they haven't been assigned yet.
             Arrays.fill(mClusterAssignments, -1);
         }
 
         // Place the read indices into an array and shuffle it.
-        int[] indices = new int[readCount];
-        for (int i = 0; i < readCount; i++) {
+        int[] indices = new int[sequenceCount];
+        for (int i = 0; i < sequenceCount; i++) {
             indices[i] = i;
         }
-        for (int i = 0, m = readCount; m > 0; i++, m--) {
+        for (int i = 0, m = sequenceCount; m > 0; i++, m--) {
             int j = i + random.nextInt(m);
             if (i != j) {
                 // Swap the indices.
@@ -203,7 +235,7 @@ public class ConcurrentKMeans implements Runnable {
         mProtoClusters = new ProtoCluster[mK];
         for (int i=0; i<mK; i++) {
             int readIndex = indices[i];
-            mProtoClusters[i] = new ProtoCluster(new ReadkMeansCentroid(mReads.get(readIndex)), readIndex);
+            mProtoClusters[i] = new ProtoCluster(new SequencekMeansCentroid(mSequences.get(readIndex)), readIndex);
             mProtoClusters[i].mCenter.initRanks(spaceRanks);
             mClusterAssignments[indices[i]] = i;
         }
@@ -229,7 +261,7 @@ public class ConcurrentKMeans implements Runnable {
                     cluster.setUpdateFlag();
                     // If the update flag was set, update the center.
                     if (cluster.needsUpdate()) {
-                        cluster.updateCenter(mReads);
+                        cluster.updateCenter(mSequences);
                     }
                 } else {
                     // When a cluster loses all of its members, it
@@ -248,12 +280,12 @@ public class ConcurrentKMeans implements Runnable {
      * distance update flags in the protocluster objects.
      */
     private void computeDistances() { 
-    	int numReads = mReads.size();
+    	int numSequences = mSequences.size();
         int numClusters = mProtoClusters.length;
         
         if (mDistanceCache == null) {    
             // Instantiate an array to hold the distances between reads and cluster centers
-            mDistanceCache = new double[numReads][numClusters];
+            mDistanceCache = new double[numSequences][numClusters];
         }
         
         // Bulk of the work is delegated to the SubtaskManager.
@@ -307,24 +339,24 @@ public class ConcurrentKMeans implements Runnable {
      * 
      * @return array of Cluster object references.
      */
-    private Cluster[] generateFinalClusters() {
+    private ClusterVectorCB[] generateFinalClusters() {
         
         int numClusters = mProtoClusters.length;
         
         // Convert the proto-clusters to the final Clusters.
         //
         // - accumulate in a list.
-        List<Cluster> clusterList = new ArrayList<Cluster>(numClusters);
+        List<ClusterVectorCB> clusterList = new ArrayList<ClusterVectorCB>(numClusters);
         for (int c = 0; c < numClusters; c++) {
             ProtoCluster pcluster = mProtoClusters[c];
             if (!pcluster.isEmpty()) {
-                Cluster cluster = new Cluster(pcluster.getMembership(), pcluster.getCenter());
+                ClusterVectorCB cluster = new ClusterVectorCB(pcluster.getMembership(), pcluster.getCenter());
                 clusterList.add(cluster);
             }
         }
     
         // - convert list to an array.
-        Cluster[] clusters = new Cluster[clusterList.size()];
+        ClusterVectorCB[] clusters = new ClusterVectorCB[clusterList.size()];
         clusterList.toArray(clusters);
 
         return clusters;
@@ -359,7 +391,7 @@ public class ConcurrentKMeans implements Runnable {
         private int mCurrentSize;
 
         // The cluster center.
-        private ReadkMeansCentroid mCenter;
+        private SequencekMeansCentroid mCenter;
 
         // Born true, so the first call to updateDistances() will set all the
         // distances.
@@ -373,7 +405,7 @@ public class ConcurrentKMeans implements Runnable {
          * @param center  the initial cluster center.
          * @param readIndex  the initial member. 
          */
-        ProtoCluster(ReadkMeansCentroid center, int readIndex) {
+        ProtoCluster(SequencekMeansCentroid center, int readIndex) {
         	mCenter = center;
             // No previous membership.
             mPreviousMembership = new int[0];
@@ -398,7 +430,7 @@ public class ConcurrentKMeans implements Runnable {
          * 
          * @return
          */
-        ReadkMeansCentroid getCenter() {
+        SequencekMeansCentroid getCenter() {
             return mCenter;
         }
         
@@ -514,12 +546,12 @@ public class ConcurrentKMeans implements Runnable {
          * 
          * @param reads the array of reads.
          */
-        void updateCenter(List<Sequence> reads) {
+        void updateCenter(List<Sequence> sequences) {
         	mCenter.initKmerValues();
         	if (mCurrentSize > 0) {
                 for (int i=0; i<mCurrentSize; i++) {
-                    Sequence read = reads.get(mCurrentMembership[i]);
-                    mCenter.addWith(read);
+                    Sequence sequence = sequences.get(mCurrentMembership[i]);
+                    mCenter.addWith(sequence);
                 }
                 mCenter.divideWith(mCurrentSize);
             }
@@ -571,36 +603,36 @@ public class ConcurrentKMeans implements Runnable {
                 throw new IllegalArgumentException("number of threads <= 0: " + numThreads);
             }
 
-            int readCount = mReads.size();
+            int sequenceCount = mSequences.size();
 
             // There would be no point in having more workers than reads, since some of the workers would have nothing to do.
-            if (numThreads > readCount) {
-                numThreads = readCount;
+            if (numThreads > sequenceCount) {
+                numThreads = sequenceCount;
             }
 
             // Create the workers.
             mWorkers = new Worker[numThreads];
 
             // To hold the number of reads for each worker.
-            int[] readsPerWorker = new int[numThreads];
+            int[] sequencesPerWorker = new int[numThreads];
             
             // Initialize with the base amounts.  
-            Arrays.fill(readsPerWorker, readCount/numThreads);
+            Arrays.fill(sequencesPerWorker, sequenceCount/numThreads);
             
             // There may be some leftovers, since readCount may not be
             // evenly divisible by numWorkers. Add a read to each
             // until all are covered.
-            int leftOvers = readCount - numThreads * readsPerWorker[0];
+            int leftOvers = sequenceCount - numThreads * sequencesPerWorker[0];
             for (int i = 0; i < leftOvers; i++) {
-                readsPerWorker[i]++;
+            	sequencesPerWorker[i]++;
             }
 
             int startRead = 0;
             // Instantiate the workers.
             for (int i = 0; i < numThreads; i++) {
                 // Each worker needs to know its starting read and the number of reads it handles.
-                mWorkers[i] = new Worker(startRead, readsPerWorker[i]);
-                startRead += readsPerWorker[i];
+                mWorkers[i] = new Worker(startRead, sequencesPerWorker[i]);
+                startRead += sequencesPerWorker[i];
             }
 
             if (numThreads == 1) { // Single-processor mode.
@@ -760,7 +792,7 @@ public class ConcurrentKMeans implements Runnable {
         private class Worker implements Runnable {
 
             // Defines range of reads to cover.
-            private int mStartRead, mNumReads;
+            private int mStartRead, mNumSequences;
 
             // Number of moves made by this worker in the last call
             // to workerMakeAssignments().  The SubtaskManager totals up
@@ -774,9 +806,9 @@ public class ConcurrentKMeans implements Runnable {
              *   this Worker.
              * @param numReads the number of reads covered.
              */
-            Worker(int startRead, int numReads) {
+            Worker(int startRead, int NumSequences) {
                 mStartRead = startRead;
-                mNumReads = numReads;
+                mNumSequences = NumSequences;
             }
 
             /**
@@ -825,14 +857,14 @@ public class ConcurrentKMeans implements Runnable {
              * to the updated centers.
              */
             private void workerComputeDistances() {
-                int lim = mStartRead + mNumReads;
+                int lim = mStartRead + mNumSequences;
                 for (int i = mStartRead; i < lim; i++) {
                     int numClusters = mProtoClusters.length;
                     for (int c = 0; c < numClusters; c++) {
                         ProtoCluster cluster = mProtoClusters[c];
                         if (cluster.getConsiderForAssignment() && cluster.needsUpdate()) {
-                        	mReads.get(i).initRanks(spaceRanks);
-                        	double distance = ReadkMeansCentroid.distanceSpearman(cluster.getCenter(), mReads.get(i), spaceRanks);
+                        	mSequences.get(i).initRanks(spaceRanks);
+                        	double distance = SequencekMeansCentroid.distanceSpearman(cluster.getCenter(), mSequences.get(i), spaceRanks);
                         	//double distance = ReadkMeansCentroid.distanceEuclid(cluster.getCenter(), mReads.get(i), spaceRanks);
                         	//System.out.println(distance);
                             mDistanceCache[i][c] = distance;
@@ -846,7 +878,7 @@ public class ConcurrentKMeans implements Runnable {
              */
             private void workerMakeAssignments() {
                 mMoves = 0;
-                int lim = mStartRead + mNumReads;
+                int lim = mStartRead + mNumSequences;
                 for (int i = mStartRead; i < lim; i++) {
                     int c = nearestCluster(i);
                     mProtoClusters[c].add(i);

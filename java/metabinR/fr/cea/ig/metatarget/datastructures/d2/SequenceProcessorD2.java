@@ -104,7 +104,7 @@ public class SequenceProcessorD2 implements Runnable {
 	public void run() {
 		try{
 			if(rpSampleVector==null){
-				rpSampleVector = new SequenceD2Centroid(new Sequence(id, null, null, true));
+				rpSampleVector = new SequenceD2Centroid(new Sequence(id, null, null));
 			}
 			
 			startSignal.await();

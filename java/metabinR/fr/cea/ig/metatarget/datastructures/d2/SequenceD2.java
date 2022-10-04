@@ -41,7 +41,7 @@ public class SequenceD2 extends Sequence implements SequenceD2Interface{
 	private TLongDoubleHashMap kmerProbs = null;
 	
 	public SequenceD2(Sequence read) {
-		super(read.getSequenceId(), read.getHeader(), read.getSeq(), read.getQual(), true);
+		super(read.getSequenceId(), read.getHeader(), read.getSeq(), read.getQual());
 		this.kmerProbs = new TLongDoubleHashMap(256);
 	}
 

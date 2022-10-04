@@ -38,7 +38,7 @@ public class FastaIterator<T> implements Iterable<List<byte[]>> {
 	static {
 		CHUNK_SIZE = (int)Runtime.getRuntime().maxMemory()/16;
 		CHUNK_SIZE = (CHUNK_SIZE/1024)*1024;
-		if(CHUNK_SIZE < 8*1024*1024) CHUNK_SIZE = 8*1024*1024;
+		if(CHUNK_SIZE < 64*1024*1024) CHUNK_SIZE = 64*1024*1024;
 		//CHUNK_SIZE=1024;
 		System.err.println("CHUNK_SIZE="+CHUNK_SIZE);
 		buffer_static = ByteBuffer.allocate(CHUNK_SIZE);
