@@ -56,6 +56,7 @@ options(java.parameters="-Xmx1500M")
 unloadNamespace("metabinR")
 library(metabinR)
 library(data.table)
+library(dplyr)
 library(ggplot2)
 library(gridExtra)
 library(cvms)
@@ -74,24 +75,20 @@ that have been sampled from 10 bacterial genomes in such a way
 We first get the abundance information for the simulated metagenome :
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
 abundances <- read.table(
-        system.file("extdata", "distribution_0.txt",package = "metabinR")
-    )
+    system.file("extdata", "distribution_0.txt",package = "metabinR"),
+    col.names = c("genome_id", "abundance" ,"AB_id"))
 ```
-In `abundances` data.frame, column 1 is the bacterial genome id, 
-column 2 is the abundance ratio and column 3 is the original 
-abundance class (1 or 2).
+In `abundances` data.frame, column `genome_id` is the bacterial genome id, 
+column `abundance` is the abundance ratio 
+and column `AB_id` is the original abundance class (in this example 1 or 2).
 
 Then we get the read mapping information (from which bacterial genome 
 each read is originating from and in which abundance class belongs) :
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-reads.mapping <- fread(
-        system.file("extdata", "reads_mapping.tsv.gz",package = "metabinR")
-    )
-reads.mapping$AB_id <- abundances$V3[
-                                        match(reads.mapping$genome_id,
-                                        abundances$V1)
-                                    ]
-reads.mapping <- reads.mapping[order(reads.mapping$anonymous_read_id),]
+reads.mapping <- fread(system.file("extdata", "reads_mapping.tsv.gz",
+                                   package = "metabinR")) %>%
+    merge(abundances[, c("genome_id","AB_id")], by = "genome_id") %>%
+    arrange(anonymous_read_id)
 ```
 In `reads.mapping` data.frame, column `anonymous_read_id` is the read id, 
 column `genome_id` is the original bacterial genome id and 
@@ -102,14 +99,13 @@ for 2 abundance classes and analyzing data with 10-mers.
 The call returns a dataframe of the assigned abundance cluster 
 and distances to all clusters for each read :
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-assignments.AB <-abundance_based_binning(
-        system.file("extdata","reads.metagenome.fasta.gz",package="metabinR"),
+assignments.AB <- abundance_based_binning(
+        system.file("extdata","reads.metagenome.fasta.gz", package="metabinR"),
         numOfClustersAB = 2, 
         kMerSizeAB = 10, 
         dryRun = FALSE, 
-        outputAB = "vignette"
-    )
-assignments.AB <- assignments.AB[order(assignments.AB$read_id),]
+        outputAB = "vignette") %>%
+    arrange(read_id)
 ```
 Note that read id of fasta header 
 matches `anonymous_read_id` of `reads.mapping`.
@@ -131,20 +127,16 @@ We get the assigned abundance class for each read in `assignments.AB$AB`
 
 Then we evaluate predicted abundance class and plot confusion matrix :
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-eval.AB.cvms <- cvms::evaluate(data = data.frame
-                                (
+eval.AB.cvms <- cvms::evaluate(data = data.frame(
                                     prediction=as.character(assignments.AB$AB),
                                     target=as.character(reads.mapping$AB_id),
-                                    stringsAsFactors = FALSE
-                                ),
+                                    stringsAsFactors = FALSE),
                                 target_col = "target",
                                 prediction_cols = "prediction",
                                 type = "binomial"
 )
-eval.AB.sabre <- sabre::vmeasure(
-                                    as.character(assignments.AB$AB),
-                                    as.character(reads.mapping$AB_id)
-                                )
+eval.AB.sabre <- sabre::vmeasure(as.character(assignments.AB$AB),
+                                as.character(reads.mapping$AB_id))
 
 p <- cvms::plot_confusion_matrix(eval.AB.cvms) +
         labs(title = "Confusion Matrix", 
@@ -160,8 +152,8 @@ tab <- as.data.frame(
         Vmeasure = round(eval.AB.sabre$v_measure,4)
     )
 )
-p_tab <- tableGrob(unname(tab))
-grid.arrange(p, p_tab, ncol = 2)
+grid.arrange(p, ncol = 1)
+knitr::kable(tab, caption = "AB binning evaluation", col.names = NULL)
 ```
 
 # Composition based binning example
@@ -178,9 +170,8 @@ We first get the read mapping information (from which bacterial genome each
 read is originating from) :
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
 reads.mapping <- fread(
-        system.file("extdata", "reads_mapping.tsv.gz",package = "metabinR")
-    )
-reads.mapping <- reads.mapping[order(reads.mapping$anonymous_read_id),]
+        system.file("extdata", "reads_mapping.tsv.gz",package = "metabinR")) %>%
+    arrange(anonymous_read_id)
 ```
 In `reads.mapping` data.frame, column `anonymous_read_id` is the read id and 
 column `genome_id` is the original bacterial genome id.
@@ -196,9 +187,8 @@ assignments.CB <- composition_based_binning(
         numOfClustersCB = 10, 
         kMerSizeCB = 4, 
         dryRun = TRUE, 
-        outputCB = "vignette"
-    )
-assignments.CB <- assignments.CB[order(assignments.CB$read_id),]
+        outputCB = "vignette") %>%
+    arrange(read_id)
 ```
 Note that read id of fasta header 
 matches `anonymous_read_id` of `reads.mapping`.
@@ -206,10 +196,8 @@ matches `anonymous_read_id` of `reads.mapping`.
 Since this is a clustering problem, it only makes sense to calculate `Vmeasure` 
 and other an extrinsic measures like `Homogeneity` and `completeness`.
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-eval.CB.sabre <- sabre::vmeasure(
-                                    as.character(assignments.CB$CB),
-                                    as.character(reads.mapping$genome_id)
-                                )
+eval.CB.sabre <- sabre::vmeasure(as.character(assignments.CB$CB),
+                                as.character(reads.mapping$genome_id))
 tab <- as.data.frame(
     c(
         Vmeasure = round(eval.AB.sabre$v_measure,4),
@@ -217,8 +205,7 @@ tab <- as.data.frame(
         Completeness = round(eval.AB.sabre$completeness,4)
     )
 )
-p_tab <- tableGrob(unname(tab))
-grid.arrange(p_tab)
+knitr::kable(tab, caption = "CB binning evaluation", col.names = NULL)
 ```
 
 # Hierarchical (2step ABxCB) binning example
@@ -235,9 +222,8 @@ We first get the read mapping information (from which bacterial genome each
 read is originating from) :
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
 reads.mapping <- fread(
-        system.file("extdata", "reads_mapping.tsv.gz",package = "metabinR")
-    )
-reads.mapping <- reads.mapping[order(reads.mapping$anonymous_read_id),]
+        system.file("extdata", "reads_mapping.tsv.gz",package = "metabinR")) %>%
+    arrange(anonymous_read_id)
 ```
 In `reads.mapping` data.frame, column `anonymous_read_id` is the read id and 
 column `genome_id` is the original bacterial genome id.
@@ -255,9 +241,8 @@ assignments.ABxCB <- hierarchical_binning(
         kMerSizeAB = 10,
         kMerSizeCB = 4, 
         dryRun = TRUE, 
-        outputC = "vignette"
-    )
-assignments.ABxCB <- assignments.ABxCB[order(assignments.ABxCB$read_id),]
+        outputC = "vignette") %>%
+    arrange(read_id)
 ```
 Note that read id of fasta header 
 matches `anonymous_read_id` of `reads.mapping`.
@@ -265,10 +250,8 @@ matches `anonymous_read_id` of `reads.mapping`.
 Calculate `Vmeasure` 
 and other an extrinsic measures like `Homogeneity` and `completeness`.
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-eval.ABxCB.sabre <- sabre::vmeasure(
-                                    as.character(assignments.ABxCB$ABxCB),
-                                    as.character(reads.mapping$genome_id)
-                                )
+eval.ABxCB.sabre <- sabre::vmeasure(as.character(assignments.ABxCB$ABxCB),
+                                    as.character(reads.mapping$genome_id))
 tab <- as.data.frame(
     c(
         Vmeasure = round(eval.ABxCB.sabre$v_measure,4),
@@ -276,8 +259,7 @@ tab <- as.data.frame(
         Completeness = round(eval.ABxCB.sabre$completeness,4)
     )
 )
-p_tab <- tableGrob(unname(tab))
-grid.arrange(p_tab)
+knitr::kable(tab, caption = "ABxCB binning evaluation", col.names = NULL)
 ```
 
 Clean files :

@@ -12,6 +12,10 @@ New package \pkg{metabinR}, Phylogenetic, Distance
 and Other Calculations on VCF and Fasta Files.
 }}
 
-\section{Version 0.99.0 (2022-10-xy)}{\itemize{
+\section{Version 0.99.1 (2022-10-11)}{\itemize{
+\item Precheck changes on vignette.
+}}
+
+\section{Version 0.99.0 (2022-10-05)}{\itemize{
 \item Submitted to Bioconductor.
 }}
