@@ -8,8 +8,12 @@
 
 \section{Version 1.0.0 (2022-10-xy)}{\itemize{
 \item Bioconductor 3.16 Release.
-New package \pkg{metabinR}, Phylogenetic, Distance
-and Other Calculations on VCF and Fasta Files.
+New package \pkg{metabinR}, Abundance and Compositional Based Binning
+of Metagenomes.
+}}
+
+\section{Version 0.99.2 (2022-10-26)}{\itemize{
+\item Remove citation message on package attach.
 }}
 
 \section{Version 0.99.1 (2022-10-11)}{\itemize{

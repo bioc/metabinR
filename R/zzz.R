@@ -1,4 +1,4 @@
-#' @importFrom utils citation
+# #' @importFrom utils citation
 .onLoad <- function(libname, pkgname) {
 
     rJava::.jpackage(
@@ -13,9 +13,9 @@
     )
 }
 
-.onAttach <- function(libname, pkgname){
-    requireNamespace("utils")
-    cit<-citation(pkgname)
-    txt<-paste(c(format(cit,"citation")),collapse="\n\n")
-    packageStartupMessage(txt)
-}
+#.onAttach <- function(libname, pkgname){
+#    requireNamespace("utils")
+#    cit<-citation(pkgname)
+#    txt<-paste(c(format(cit,"citation")),collapse="\n\n")
+#    packageStartupMessage(txt)
+#}
