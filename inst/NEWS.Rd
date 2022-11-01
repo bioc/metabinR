@@ -2,6 +2,10 @@
 \title{metabinRNews News}
 \encoding{UTF-8}
 
+\section{Version 1.1.0 (2022-11-01)}{\itemize{
+\item Bump x.y.z version to odd y following creation of RELEASE_3_16 branch.
+}}
+
 \section{Version 1.0.0 (2022-11-01)}{\itemize{
 \item Bioconductor 3.16 Release.
 New package \pkg{metabinR}, Abundance and Compositional Based Binning
