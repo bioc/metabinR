@@ -2,7 +2,7 @@
 \title{metabinRNews News}
 \encoding{UTF-8}
 
-\section{Version 1.0.0 (2022-11-02)}{\itemize{
+\section{Version 1.0.0 (2022-11-01)}{\itemize{
 \item Bioconductor 3.16 Release.
 New package \pkg{metabinR}, Abundance and Compositional Based Binning
 of Metagenomes.
