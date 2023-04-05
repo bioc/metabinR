@@ -1,7 +1,7 @@
 Package: metabinR
 Type: Package
 Title: Abundance and Compositional Based Binning of Metagenomes
-Version: 1.1.1
+Version: 1.1.2
 biocViews: Classification, Clustering, Microbiome, Sequencing, Software
 Authors@R:
     c(person(given = "Anestis",
@@ -23,7 +23,6 @@ Depends:
     R (>= 4.2)
 Imports: 
     methods,
-    R.utils,
     rJava
 SystemRequirements: Java (>= 8)
 RoxygenNote: 7.2.1
@@ -37,6 +36,7 @@ Suggests:
     ggplot2,
     gridExtra,
     knitr,
+    R.utils,
     rmarkdown,
     sabre,
     spelling,
