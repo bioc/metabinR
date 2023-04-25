@@ -1,7 +1,7 @@
 Package: metabinR
 Type: Package
 Title: Abundance and Compositional Based Binning of Metagenomes
-Version: 1.1.3
+Version: 1.2.0
 biocViews: Classification, Clustering, Microbiome, Sequencing, Software
 Authors@R:
     c(person(given = "Anestis",
