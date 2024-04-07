@@ -2,7 +2,9 @@
 \title{metabinRNews News}
 \encoding{UTF-8}
 
-
+\section{Version 1.5.1 (2024-04-07)}{\itemize{
+\item Preparing for next Bioconductor Release.
+}}
 
 \section{Version 1.5.0 (2023-10-29)}{\itemize{
 \item Bump x.y.z version to odd y following creation of RELEASE_3_18 branch.
