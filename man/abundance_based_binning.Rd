@@ -14,12 +14,15 @@ abundance_based_binning(
   keepQuality = FALSE,
   dryRun = FALSE,
   gzip = FALSE,
-  numOfThreads = 1
+  numOfThreads = BiocParallel::bpworkers()
 )
 }
 \arguments{
-\item{...}{Input fasta/fastq files locations
-(uncompressed or gzip compressed).}
+\item{...}{Input sequences. Either character paths to FASTA/FASTQ files
+(uncompressed or gzip compressed), a \code{\link[Biostrings]{DNAStringSet}}
+/ \code{\link[Biostrings]{QualityScaledDNAStringSet}}, or a
+\code{\link[ShortRead]{ShortReadQ}} object. Non-file inputs are staged to
+a temporary FASTA/FASTQ file for the Java backend.}
 
 \item{eMin}{Exclude kmers of less or equal count.}
 
@@ -39,16 +42,20 @@ files location and prefix.}
 
 \item{gzip}{Gzip output files.}
 
-\item{numOfThreads}{Number of threads to use.}
+\item{numOfThreads}{Number of threads to use. Defaults to
+\code{\link[BiocParallel]{bpworkers}()}.}
 }
 \value{
-A \code{\link[base]{data.frame}} of the binning assignments.
-    Return value contains \code{numOfClustersAB + 2} columns.
+A \linkS4class{MetabinResult} object. Its \code{assignments} slot
+  is a \code{\link[S4Vectors]{DataFrame}} with \code{numOfClustersAB + 2}
+  columns:
 \itemize{
     \item \code{read_id} : read identifier from fasta header
     \item \code{AB} : read was assigned to this AB cluster index
     \item \code{AB.n} : read to cluster AB.n distance
 }
+For backwards-compatible \code{data.frame} output use
+\code{as.data.frame(result)}.
 }
 \description{
 This function performs abundance based binning on metagenomic samples,
@@ -56,10 +63,12 @@ directly from FASTA or FASTQ files, by long kmer analysis (k>8).
 See \doi{10.1186/s12859-016-1186-3} for more details.
 }
 \examples{
-abundance_based_binning(
-    system.file("extdata", "reads.metagenome.fasta.gz",package = "metabinR"),
+res <- abundance_based_binning(
+    system.file("extdata", "reads.metagenome.fasta.gz", package = "metabinR"),
     dryRun = TRUE, kMerSizeAB = 8
 )
+res
+head(as.data.frame(res))
 }
 \references{
 \url{https://github.com/gkanogiannis/metabinR}

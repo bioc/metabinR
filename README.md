@@ -3,10 +3,11 @@
 
 # metabinR
 
-<!-- badges: start
-[![BioC status]
-(http://www.bioconductor.org/shields/build/release/bioc/metabinR.svg)]
-(https://bioconductor.org/checkResults/release/bioc-LATEST/metabinR)
+<!-- badges: start -->
+[![BioC status](https://www.bioconductor.org/shields/build/release/bioc/metabinR.svg)](https://bioconductor.org/checkResults/release/bioc-LATEST/metabinR)
+[![R-CMD-check](https://github.com/gkanogiannis/metabinR/actions/workflows/check-bioc.yml/badge.svg)](https://github.com/gkanogiannis/metabinR/actions/workflows/check-bioc.yml)
+[![build-jar](https://github.com/gkanogiannis/metabinR/actions/workflows/build-jar.yml/badge.svg)](https://github.com/gkanogiannis/metabinR/actions/workflows/build-jar.yml)
+[![pkgdown](https://github.com/gkanogiannis/metabinR/actions/workflows/pkgdown.yml/badge.svg)](https://gkanogiannis.github.io/metabinR/)
 <!-- badges: end -->
 
 Metagenomics holds great promises for deepening our knowledge of key
@@ -29,7 +30,7 @@ utilizing short kmers (k\<8).
 
 ## Requirements
 
-A JDK, at least 8, is required and needs to be present before installing
+A JDK, at least 11, is required and needs to be present before installing
 `metabinR`.
 
 ## Citation

@@ -1,0 +1,22 @@
+url: https://gkanogiannis.github.io/metabinR
+template:
+  bootstrap: 5
+
+reference:
+- title: Binning functions
+  desc: High-level entry points for metagenome binning.
+  contents:
+  - abundance_based_binning
+  - composition_based_binning
+  - hierarchical_binning
+- title: MetabinResult
+  desc: S4 container for binning assignments and parameters.
+  contents:
+  - MetabinResult-class
+  - assignments
+  - nClusters
+  - parameters
+  - algorithm
+- title: JVM configuration
+  contents:
+  - metabinR_jvm_options

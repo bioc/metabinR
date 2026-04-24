@@ -20,11 +20,13 @@ test_that("test parameters",{
     expect_error(hierarchical_binning(fastaFile, numOfThreads = "some"))
 })
 
-test_that("test return is a list",{
-    expect_type(
-        hierarchical_binning(
-            system.file("extdata", "reads.metagenome.fasta.gz",
-                        package = "metabinR"),
-            dryRun = TRUE, kMerSizeAB = 8, numOfClustersAB = 2),
-        "list")
+test_that("test return is a MetabinResult",{
+    res <- hierarchical_binning(
+        system.file("extdata", "reads.metagenome.fasta.gz",
+                    package = "metabinR"),
+        dryRun = TRUE, kMerSizeAB = 8, numOfClustersAB = 2)
+    expect_s4_class(res, "MetabinResult")
+    expect_identical(algorithm(res), "ABxCB")
+    expect_s4_class(assignments(res), "DataFrame")
+    expect_true(nrow(assignments(res)) > 0L)
 })

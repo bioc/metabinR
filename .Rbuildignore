@@ -6,3 +6,7 @@
 ^Meta$
 ^tmp$
 ^\.github$
+^java$
+^tools$
+^_pkgdown\.yml$
+^\.gitattributes$

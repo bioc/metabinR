@@ -1,10 +1,10 @@
 ---
 title: "metabinR"
-author: 
+author:
 -   name: "Anestis Gkanogiannis"
     email: anestis@gkanogiannis.com
 package: metabinR
-output: 
+output:
     BiocStyle::html_document:
     toc: true
 vignette: >
@@ -22,38 +22,37 @@ knitr::opts_chunk$set(
 
 # About metabinR
 
-The goal of metabinR is to provide functions for performing abundance and 
-composition based binning on metagenomic samples, directly from FASTA or 
-FASTQ files.
+`metabinR` performs abundance- and composition-based binning on
+metagenomic samples directly from FASTA or FASTQ files. Abundance-based
+binning (AB) analyzes long k-mers (k > 8); composition-based binning
+(CB) analyzes short k-mers (k < 8); hierarchical binning (ABxCB) chains
+the two.
 
-Abundance based binning is performed by analyzing sequences with long kmers 
-(k>8), whereas composition based binning is performed by utilizing short kmers 
-(k<8).
+The heavy lifting is implemented in Java and called via
+[rJava](https://cran.r-project.org/package=rJava). From v2.0.0 the R API
+returns an S4 `MetabinResult` object and accepts Biostrings / ShortRead
+inputs in addition to file paths.
 
 # Installation
 
-To install `metabinR` package:
 ```{r, eval=FALSE}
-if (!requireNamespace("BiocManager", quietly=TRUE))
+if (!requireNamespace("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 BiocManager::install("metabinR")
 ```
 
+A JDK (Java >= 17) must be available before installing `metabinR`.
+
 # Preparation
 
-## Allocate RAM and load required libraries
+## JVM heap size
 
-In order to allocate RAM, a special parameter needs to be passed while JVM 
-initializes. JVM parameters can be passed by setting `java.parameters` option.
-The `-Xmx` parameter, followed (without space) by an integer value and a 
-letter, is used to tell JVM what is the maximum amount of heap RAM that it can
-use. The letter in the parameter (uppercase or lowercase), indicates RAM units.
-For example, parameters `-Xmx1024m` or `-Xmx1024M` or `-Xmx1g` or `-Xmx1G`, all
-allocate 1 Gigabyte or 1024 Megabytes of maximum RAM for JVM.
+JVM flags are passed through the `java.parameters` option. The `-Xmx`
+flag controls the maximum heap: `-Xmx1500M` or `-Xmx3G`, etc. Set this
+**before** loading the package.
 
 ```{r, eval=TRUE, message=FALSE}
-options(java.parameters="-Xmx1500M")
-unloadNamespace("metabinR")
+options(java.parameters = "-Xmx1500M")
 library(metabinR)
 library(data.table)
 library(dplyr)
@@ -61,95 +60,101 @@ library(ggplot2)
 library(gridExtra)
 library(cvms)
 library(sabre)
+library(Biostrings)
 ```
+
+To customise additional JVM flags (on top of the `-Xmx` heap setting),
+set `options(metabinR.jvm.flags = c("-XX:+UseG1GC", ...))` before the
+package is loaded. The defaults returned by `metabinR_jvm_options()`
+already enable G1GC and string deduplication.
+
+# The `MetabinResult` class
+
+Each binning function returns a `MetabinResult` S4 object:
+
+* `assignments(res)` — `DataFrame` of per-read cluster assignments.
+* `nClusters(res)` — number of clusters produced.
+* `parameters(res)` — list of parameters actually used.
+* `algorithm(res)` — `"AB"`, `"CB"`, or `"ABxCB"`.
+* `as.data.frame(res)` — the v1.x tabular layout for back-compat.
 
 # Abundance based binning example
 
-In this example we use the simulated metagenome sample (see sample data) to 
-perform abundance based binning.
-The simulated metagenome contains 26664 Illumina reads (13332 pairs of 2x150bp) 
-that have been sampled from 10 bacterial genomes in such a way 
-(log-norm abundances) that each read is belongs to one of two abundance classes
-(class 1 of high abundant taxa and class 2 of low abundant taxa).
+The toy simulated metagenome contains 26,664 Illumina reads (13,332
+pairs of 2x150bp) sampled from 10 bacterial genomes across two
+abundance classes (high vs. low).
 
-We first get the abundance information for the simulated metagenome :
+Abundance ground truth:
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
 abundances <- read.table(
-    system.file("extdata", "distribution_0.txt",package = "metabinR"),
-    col.names = c("genome_id", "abundance" ,"AB_id"))
+    system.file("extdata", "distribution_0.txt", package = "metabinR"),
+    col.names = c("genome_id", "abundance", "AB_id"))
 ```
-In `abundances` data.frame, column `genome_id` is the bacterial genome id, 
-column `abundance` is the abundance ratio 
-and column `AB_id` is the original abundance class (in this example 1 or 2).
 
-Then we get the read mapping information (from which bacterial genome 
-each read is originating from and in which abundance class belongs) :
+Read-level ground truth:
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-reads.mapping <- fread(system.file("extdata", "reads_mapping.tsv.gz",
-                                   package = "metabinR")) %>%
-    merge(abundances[, c("genome_id","AB_id")], by = "genome_id") %>%
+reads.mapping <- fread(
+        system.file("extdata", "reads_mapping.tsv.gz", package = "metabinR")) %>%
+    merge(abundances[, c("genome_id", "AB_id")], by = "genome_id") %>%
     arrange(anonymous_read_id)
 ```
-In `reads.mapping` data.frame, column `anonymous_read_id` is the read id, 
-column `genome_id` is the original bacterial genome id and 
-column `AB_id` is the original abundance class id.
 
-We perform Abundance based Binning on the simulated reads, 
-for 2 abundance classes and analyzing data with 10-mers.
-The call returns a dataframe of the assigned abundance cluster 
-and distances to all clusters for each read :
+Run abundance-based binning with 10-mers into 2 clusters:
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-assignments.AB <- abundance_based_binning(
-        system.file("extdata","reads.metagenome.fasta.gz", package="metabinR"),
-        numOfClustersAB = 2, 
-        kMerSizeAB = 10, 
-        dryRun = FALSE, 
-        outputAB = "vignette") %>%
-    arrange(read_id)
+res.AB <- abundance_based_binning(
+    system.file("extdata", "reads.metagenome.fasta.gz", package = "metabinR"),
+    numOfClustersAB = 2,
+    kMerSizeAB = 10,
+    dryRun = FALSE,
+    outputAB = "vignette"
+)
+res.AB
 ```
-Note that read id of fasta header 
-matches `anonymous_read_id` of `reads.mapping`.
 
-Call to \link[metabinR]{abundance_based_binning} will produce 2 fasta file, 
-one for each of the abundance classes, containing fasta reads assigned to each 
-class.
-It will also produce a file containing histogram information of kmers counted.
-We can plot this histogram as :
+`res.AB` is a `MetabinResult`. Extract the per-read table and pull the
+cluster labels out of it:
+
+```{r, eval=TRUE, message=FALSE, warning=FALSE}
+assignments.AB <- as.data.frame(res.AB) %>% arrange(read_id)
+```
+
+`abundance_based_binning()` wrote one FASTA per cluster and a k-mer
+count histogram:
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
 histogram.AB <- read.table("vignette__AB.histogram.tsv", header = TRUE)
-ggplot(histogram.AB, aes(x=counts, y=frequency)) + 
+ggplot(histogram.AB, aes(x = counts, y = frequency)) +
     geom_area() +
-    labs(title = "kmer counts histogram") + 
+    labs(title = "kmer counts histogram") +
     theme_bw()
 ```
 
-We get the assigned abundance class for each read in `assignments.AB$AB`
-
-Then we evaluate predicted abundance class and plot confusion matrix :
+Evaluate against the abundance-class ground truth:
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-eval.AB.cvms <- cvms::evaluate(data = data.frame(
-                                    prediction=as.character(assignments.AB$AB),
-                                    target=as.character(reads.mapping$AB_id),
-                                    stringsAsFactors = FALSE),
-                                target_col = "target",
-                                prediction_cols = "prediction",
-                                type = "binomial"
+eval.AB.cvms <- cvms::evaluate(
+    data = data.frame(
+        prediction = as.character(assignments.AB$AB),
+        target = as.character(reads.mapping$AB_id),
+        stringsAsFactors = FALSE),
+    target_col = "target",
+    prediction_cols = "prediction",
+    type = "binomial"
 )
-eval.AB.sabre <- sabre::vmeasure(as.character(assignments.AB$AB),
-                                as.character(reads.mapping$AB_id))
+eval.AB.sabre <- sabre::vmeasure(
+    as.character(assignments.AB$AB),
+    as.character(reads.mapping$AB_id))
 
 p <- cvms::plot_confusion_matrix(eval.AB.cvms) +
-        labs(title = "Confusion Matrix", 
-                x = "Target Abundance Class", 
-                y = "Predicted Abundance Class")
+    labs(title = "Confusion Matrix",
+         x = "Target Abundance Class",
+         y = "Predicted Abundance Class")
 tab <- as.data.frame(
     c(
-        Accuracy =  round(eval.AB.cvms$Accuracy,4),
-        Specificity =  round(eval.AB.cvms$Specificity,4),
-        Sensitivity =  round(eval.AB.cvms$Sensitivity,4),
-        Fscore =  round(eval.AB.cvms$F1,4),
-        Kappa =  round(eval.AB.cvms$Kappa,4),
-        Vmeasure = round(eval.AB.sabre$v_measure,4)
+        Accuracy    = round(eval.AB.cvms$Accuracy, 4),
+        Specificity = round(eval.AB.cvms$Specificity, 4),
+        Sensitivity = round(eval.AB.cvms$Sensitivity, 4),
+        Fscore      = round(eval.AB.cvms$F1, 4),
+        Kappa       = round(eval.AB.cvms$Kappa, 4),
+        Vmeasure    = round(eval.AB.sabre$v_measure, 4)
     )
 )
 grid.arrange(p, ncol = 1)
@@ -158,116 +163,92 @@ knitr::kable(tab, caption = "AB binning evaluation", col.names = NULL)
 
 # Composition based binning example
 
-In a similar way, we analyze the simulated metagenome sample 
-with the Composition based Binning module.
-
-The simulated metagenome contains 26664 Illumina reads (13332 pairs of 2x150bp) 
-that have been sampled from 10 bacterial genomes.
-The originating bacteria genome is therefore the true class information of
-each read in this example.
-
-We first get the read mapping information (from which bacterial genome each 
-read is originating from) :
+Read-level ground truth (bacterial genome of origin):
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
 reads.mapping <- fread(
-        system.file("extdata", "reads_mapping.tsv.gz",package = "metabinR")) %>%
+        system.file("extdata", "reads_mapping.tsv.gz", package = "metabinR")) %>%
     arrange(anonymous_read_id)
 ```
-In `reads.mapping` data.frame, column `anonymous_read_id` is the read id and 
-column `genome_id` is the original bacterial genome id.
 
-We perform Composition based Binning on the simulated reads, 
-for 10 composition classes (one for each bacterial genome) and analyzing data 
-with 6-mers.
-The call returns a dataframe of the assigned composition cluster 
-and distances to all clusters for each read :
+Run composition-based binning with 4-mers into 10 clusters:
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-assignments.CB <- composition_based_binning(
-        system.file("extdata","reads.metagenome.fasta.gz",package ="metabinR"),
-        numOfClustersCB = 10, 
-        kMerSizeCB = 4, 
-        dryRun = TRUE, 
-        outputCB = "vignette") %>%
-    arrange(read_id)
+res.CB <- composition_based_binning(
+    system.file("extdata", "reads.metagenome.fasta.gz", package = "metabinR"),
+    numOfClustersCB = 10,
+    kMerSizeCB = 4,
+    dryRun = TRUE,
+    outputCB = "vignette"
+)
+assignments.CB <- as.data.frame(res.CB) %>% arrange(read_id)
 ```
-Note that read id of fasta header 
-matches `anonymous_read_id` of `reads.mapping`.
 
-Since this is a clustering problem, it only makes sense to calculate `Vmeasure` 
-and other an extrinsic measures like `Homogeneity` and `completeness`.
+As a pure clustering task, evaluate with extrinsic measures:
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-eval.CB.sabre <- sabre::vmeasure(as.character(assignments.CB$CB),
-                                as.character(reads.mapping$genome_id))
+eval.CB.sabre <- sabre::vmeasure(
+    as.character(assignments.CB$CB),
+    as.character(reads.mapping$genome_id))
 tab <- as.data.frame(
     c(
-        Vmeasure = round(eval.AB.sabre$v_measure,4),
-        Homogeneity = round(eval.AB.sabre$homogeneity,4),
-        Completeness = round(eval.AB.sabre$completeness,4)
+        Vmeasure     = round(eval.CB.sabre$v_measure, 4),
+        Homogeneity  = round(eval.CB.sabre$homogeneity, 4),
+        Completeness = round(eval.CB.sabre$completeness, 4)
     )
 )
 knitr::kable(tab, caption = "CB binning evaluation", col.names = NULL)
 ```
 
-# Hierarchical (2step ABxCB) binning example
+# Hierarchical (2-step ABxCB) binning example
 
-Finally, we analyze the simulated metagenome sample 
-with the Hierarchical Binning module.
-
-The simulated metagenome contains 26664 Illumina reads (13332 pairs of 2x150bp) 
-that have been sampled from 10 bacterial genomes.
-The originating bacteria genome is therefore the true class information of
-each read in this example.
-
-We first get the read mapping information (from which bacterial genome each 
-read is originating from) :
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-reads.mapping <- fread(
-        system.file("extdata", "reads_mapping.tsv.gz",package = "metabinR")) %>%
-    arrange(anonymous_read_id)
-```
-In `reads.mapping` data.frame, column `anonymous_read_id` is the read id and 
-column `genome_id` is the original bacterial genome id.
+res.ABxCB <- hierarchical_binning(
+    system.file("extdata", "reads.metagenome.fasta.gz", package = "metabinR"),
+    numOfClustersAB = 2,
+    kMerSizeAB = 10,
+    kMerSizeCB = 4,
+    dryRun = TRUE,
+    outputC = "vignette"
+)
+assignments.ABxCB <- as.data.frame(res.ABxCB) %>% arrange(read_id)
 
-We perform Hierarchical Binning on the simulated reads, 
-for initially 2 abundance classes.
-Data is analyzed with 10-mers for the AB part 
-and with 4-mers for the following CB part.
-The call returns a dataframe of the assigned final hierarchical cluster (ABxCB) 
-and distances to all clusters for each read :
-```{r, eval=TRUE, message=FALSE, warning=FALSE}
-assignments.ABxCB <- hierarchical_binning(
-        system.file("extdata","reads.metagenome.fasta.gz",package ="metabinR"),
-        numOfClustersAB = 2,
-        kMerSizeAB = 10,
-        kMerSizeCB = 4, 
-        dryRun = TRUE, 
-        outputC = "vignette") %>%
-    arrange(read_id)
-```
-Note that read id of fasta header 
-matches `anonymous_read_id` of `reads.mapping`.
-
-Calculate `Vmeasure` 
-and other an extrinsic measures like `Homogeneity` and `completeness`.
-```{r, eval=TRUE, message=FALSE, warning=FALSE}
-eval.ABxCB.sabre <- sabre::vmeasure(as.character(assignments.ABxCB$ABxCB),
-                                    as.character(reads.mapping$genome_id))
+eval.ABxCB.sabre <- sabre::vmeasure(
+    as.character(assignments.ABxCB$ABxCB),
+    as.character(reads.mapping$genome_id))
 tab <- as.data.frame(
     c(
-        Vmeasure = round(eval.ABxCB.sabre$v_measure,4),
-        Homogeneity = round(eval.ABxCB.sabre$homogeneity,4),
-        Completeness = round(eval.ABxCB.sabre$completeness,4)
+        Vmeasure     = round(eval.ABxCB.sabre$v_measure, 4),
+        Homogeneity  = round(eval.ABxCB.sabre$homogeneity, 4),
+        Completeness = round(eval.ABxCB.sabre$completeness, 4)
     )
 )
 knitr::kable(tab, caption = "ABxCB binning evaluation", col.names = NULL)
 ```
 
-Clean files :
+# In-memory inputs (Biostrings / ShortRead)
+
+Instead of a path, you can pass a `DNAStringSet`,
+`QualityScaledDNAStringSet`, or `ShortReadQ`. The Java backend reads
+from disk, so non-file inputs are staged to a tempfile transparently.
+
+```{r, eval=TRUE, message=FALSE, warning=FALSE}
+reads <- Biostrings::readDNAStringSet(
+    system.file("extdata", "reads.metagenome.fasta.gz", package = "metabinR"))
+
+res.AB.mem <- abundance_based_binning(
+    reads,
+    numOfClustersAB = 2,
+    kMerSizeAB = 10,
+    dryRun = TRUE
+)
+identical(nrow(assignments(res.AB.mem)), nrow(assignments(res.AB)))
+```
+
+Clean up files written by the AB run:
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
 unlink("vignette__*")
 ```
 
 # Session Info
+
 ```{r setup}
 utils::sessionInfo()
 ```

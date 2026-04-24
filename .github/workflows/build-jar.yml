@@ -1,0 +1,56 @@
+name: build-jar
+
+on:
+  push:
+    branches: [devel, master, main]
+    paths:
+      - 'java/**'
+      - 'tools/build-jar.sh'
+      - '.github/workflows/build-jar.yml'
+  pull_request:
+    paths:
+      - 'java/**'
+      - 'tools/build-jar.sh'
+      - '.github/workflows/build-jar.yml'
+      - 'inst/java/**'
+
+jobs:
+  reproducible-jar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Record committed JAR checksum
+        id: committed
+        run: |
+          if ls inst/java/metabinR-*-jar-with-dependencies.jar >/dev/null 2>&1; then
+            sha=$(sha256sum inst/java/metabinR-*-jar-with-dependencies.jar | awk '{print $1}')
+            echo "sha=$sha" >> "$GITHUB_OUTPUT"
+            echo "Committed JAR sha256: $sha"
+          else
+            echo "No committed JAR found" >&2
+            exit 1
+          fi
+
+      - name: Rebuild JAR
+        run: |
+          chmod +x tools/build-jar.sh
+          tools/build-jar.sh
+
+      - name: Verify reproducible build
+        run: |
+          rebuilt=$(sha256sum inst/java/metabinR-*-jar-with-dependencies.jar | awk '{print $1}')
+          echo "Rebuilt JAR sha256:   $rebuilt"
+          echo "Committed JAR sha256: ${{ steps.committed.outputs.sha }}"
+          if [ "$rebuilt" != "${{ steps.committed.outputs.sha }}" ]; then
+            echo "::error::Committed JAR does not match a clean Maven build. Run tools/build-jar.sh and commit the result."
+            exit 1
+          fi

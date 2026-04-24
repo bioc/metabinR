@@ -14,11 +14,13 @@ test_that("test parameters",{
     expect_error(composition_based_binning(fastaFile, numOfThreads = "some"))
 })
 
-test_that("test return is a list",{
-    expect_type(
-        composition_based_binning(
-            system.file("extdata", "reads.metagenome.fasta.gz",
-                        package = "metabinR"),
-            dryRun = TRUE, kMerSizeCB = 4, numOfClustersCB = 2),
-        "list")
+test_that("test return is a MetabinResult",{
+    res <- composition_based_binning(
+        system.file("extdata", "reads.metagenome.fasta.gz",
+                    package = "metabinR"),
+        dryRun = TRUE, kMerSizeCB = 4, numOfClustersCB = 2)
+    expect_s4_class(res, "MetabinResult")
+    expect_identical(algorithm(res), "CB")
+    expect_s4_class(assignments(res), "DataFrame")
+    expect_true(nrow(assignments(res)) > 0L)
 })
