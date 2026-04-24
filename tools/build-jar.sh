@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build the metabinR shaded JAR and place it under inst/java/.
 #
-# Requires: Java 17+ and Maven on PATH.
+# Requires: Java 11+ and Maven on PATH.
 # Usage:  ./tools/build-jar.sh
 set -euo pipefail
 
