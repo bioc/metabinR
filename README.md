@@ -4,9 +4,10 @@
 # metabinR
 
 <!-- badges: start -->
-[![BioC status](https://www.bioconductor.org/shields/build/release/bioc/metabinR.svg)](https://bioconductor.org/checkResults/release/bioc-LATEST/metabinR)
+
+[![BioC
+status](https://www.bioconductor.org/shields/build/release/bioc/metabinR.svg)](https://bioconductor.org/checkResults/release/bioc-LATEST/metabinR)
 [![R-CMD-check](https://github.com/gkanogiannis/metabinR/actions/workflows/check-bioc.yml/badge.svg)](https://github.com/gkanogiannis/metabinR/actions/workflows/check-bioc.yml)
-[![build-jar](https://github.com/gkanogiannis/metabinR/actions/workflows/build-jar.yml/badge.svg)](https://github.com/gkanogiannis/metabinR/actions/workflows/build-jar.yml)
 [![pkgdown](https://github.com/gkanogiannis/metabinR/actions/workflows/pkgdown.yml/badge.svg)](https://gkanogiannis.github.io/metabinR/)
 <!-- badges: end -->
 
@@ -30,8 +31,8 @@ utilizing short kmers (k\<8).
 
 ## Requirements
 
-A JDK, at least 11, is required and needs to be present before installing
-`metabinR`.
+A JDK, at least 11, is required and needs to be present before
+installing `metabinR`.
 
 ## Citation
 
@@ -189,11 +190,13 @@ of the assignment of each sequence (column `read_id`) to which cluster
 
 This module performs hierarchical binning on metagenomic samples,
 
-First it analyzes sequences by long kmer analysis (k\>8), as in .
+First it analyzes sequences by long kmer analysis (k\>8), as in
+[`abundance_based_binning`](https://gkanogiannis.github.io/metabinR/reference/abundance_based_binning.html).
 
 Then for each AB bin, it guesses the number of composition bins in it
 and performs composition based binning by short kmer analysis (k\<8), as
-in .
+in
+[`composition_based_binning`](https://gkanogiannis.github.io/metabinR/reference/composition_based_binning.html).
 
 This module outputs, as with the independent AB and CB modules, a
 fasta/fastq for each final cluster `prefix__ABxCB.n.fasta`, containing
