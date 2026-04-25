@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x *)",
+      "Bash(mvn --version)",
+      "Bash(java --version)",
+      "Bash(bash tools/build-jar.sh)",
+      "Bash(R --version)",
+      "Bash(R -q -e 'installed.packages\\(\\)[c\\(\"devtools\",\"roxygen2\",\"checkmate\",\"cli\",\"Biostrings\",\"ShortRead\",\"S4Vectors\",\"BiocParallel\",\"lifecycle\",\"progressr\",\"rJava\"\\), \"Version\", drop=FALSE]')",
+      "Bash(mkdir -p ~/R/x86_64-pc-linux-gnu-library/4.5)",
+      "Bash(R -q -e '.libPaths\\(c\\(\"~/R/x86_64-pc-linux-gnu-library/4.5\", .libPaths\\(\\)\\)\\); options\\(repos=c\\(CRAN=\"https://cloud.r-project.org\"\\)\\); install.packages\\(\"checkmate\", lib=\"~/R/x86_64-pc-linux-gnu-library/4.5\"\\); BiocManager::install\\(c\\(\"Biostrings\",\"ShortRead\"\\), ask=FALSE, update=FALSE, lib=\"~/R/x86_64-pc-linux-gnu-library/4.5\"\\)')",
+      "Bash(R -q -e 'devtools::document\\(\\)')",
+      "Bash(R -q -e ' *)",
+      "Bash(R -q -e 'print\\(rJava::.jpackage\\)')",
+      "Bash(R CMD INSTALL .)",
+      "Bash(R -e 'devtools::test\\(\\)')",
+      "Bash(R -e 'devtools::check\\(document = FALSE, error_on = \"never\"\\)')",
+      "Bash(R -e 'devtools::check\\(document = FALSE, error_on = \"never\", vignettes = FALSE\\)')",
+      "Bash(R CMD build .)",
+      "Bash(tar tzf *)",
+      "Bash(R -e 'BiocCheck::BiocCheck\\(\"metabinR_1.99.0.tar.gz\"\\)')",
+      "Bash(R -e 'BiocCheck::BiocCheck\\(\"metabinR_2.0.0.tar.gz\"\\)')",
+      "Bash(R -e 'pkgdown::build_reference_index\\(\\)')"
+    ]
+  }
+}
