@@ -17,6 +17,11 @@ reference:
   - nClusters
   - parameters
   - algorithm
+  - as.data.frame,MetabinResult-method
 - title: JVM configuration
   contents:
   - metabinR_jvm_options
+
+authors:
+  Anestis Gkanogiannis:
+    href: https://github.com/gkanogiannis

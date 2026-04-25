@@ -11,6 +11,7 @@ vignettes/*.md
 vignettes/*.R
 vignettes/*.html
 /doc/
+/docs/
 /Meta/
 /tmp/
 inst/script/*.html

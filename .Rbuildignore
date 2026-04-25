@@ -9,4 +9,9 @@
 ^java$
 ^tools$
 ^_pkgdown\.yml$
+^docs$
 ^\.gitattributes$
+^codecov\.yml$
+^metabinR_.*\.tar\.gz$
+^\.gitattributes$
+^\.gitignore$
