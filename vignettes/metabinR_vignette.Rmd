@@ -41,7 +41,7 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
 BiocManager::install("metabinR")
 ```
 
-A JDK (Java >= 17) must be available before installing `metabinR`.
+A JDK (Java >= 11) must be available before installing `metabinR`.
 
 # Preparation
 
@@ -54,12 +54,7 @@ flag controls the maximum heap: `-Xmx1500M` or `-Xmx3G`, etc. Set this
 ```{r, eval=TRUE, message=FALSE}
 options(java.parameters = "-Xmx1500M")
 library(metabinR)
-library(data.table)
-library(dplyr)
 library(ggplot2)
-library(gridExtra)
-library(cvms)
-library(sabre)
 library(Biostrings)
 ```
 
@@ -78,6 +73,11 @@ Each binning function returns a `MetabinResult` S4 object:
 * `algorithm(res)` — `"AB"`, `"CB"`, or `"ABxCB"`.
 * `as.data.frame(res)` — the v1.x tabular layout for back-compat.
 
+The `read_id` column identifies each read. The column named by
+`algorithm(res)` contains its assigned bin, and columns such as `AB.1`
+contain distances to candidate bins. Bin numbers are arbitrary labels;
+they do not identify genomes or abundance classes on their own.
+
 # Abundance based binning example
 
 The toy simulated metagenome contains 26,664 Illumina reads (13,332
@@ -91,12 +91,14 @@ abundances <- read.table(
     col.names = c("genome_id", "abundance", "AB_id"))
 ```
 
-Read-level ground truth:
+Read-level ground truth contains the genome of origin for each read. Add
+the abundance class of each genome for the AB evaluation:
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-reads.mapping <- fread(
-        system.file("extdata", "reads_mapping.tsv.gz", package = "metabinR")) %>%
-    merge(abundances[, c("genome_id", "AB_id")], by = "genome_id") %>%
-    arrange(anonymous_read_id)
+reads.mapping <- read.delim(system.file(
+    "extdata", "reads_mapping.tsv.gz", package = "metabinR"))
+reads.mapping <- merge(reads.mapping,
+                       abundances[, c("genome_id", "AB_id")],
+                       by = "genome_id")
 ```
 
 Run abundance-based binning with 10-mers into 2 clusters:
@@ -111,11 +113,12 @@ res.AB <- abundance_based_binning(
 res.AB
 ```
 
-`res.AB` is a `MetabinResult`. Extract the per-read table and pull the
-cluster labels out of it:
+Inspect the assignments and summarize the observed bins. The distance
+summaries use only each read's distance to its assigned bin:
 
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-assignments.AB <- as.data.frame(res.AB) %>% arrange(read_id)
+head(as.data.frame(assignments(res.AB)))
+knitr::kable(as.data.frame(bin_summary(res.AB)), digits = 3)
 ```
 
 `abundance_based_binning()` wrote one FASTA per cluster and a k-mer
@@ -128,47 +131,26 @@ ggplot(histogram.AB, aes(x = counts, y = frequency)) +
     theme_bw()
 ```
 
-Evaluate against the abundance-class ground truth:
+Evaluate against the abundance-class ground truth. `evaluate_bins()`
+matches `read_id` to `anonymous_read_id`, so the two tables need not have
+the same row order. The confusion table has inferred bins as rows and
+known abundance classes as columns:
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-eval.AB.cvms <- cvms::evaluate(
-    data = data.frame(
-        prediction = as.character(assignments.AB$AB),
-        target = as.character(reads.mapping$AB_id),
-        stringsAsFactors = FALSE),
-    target_col = "target",
-    prediction_cols = "prediction",
-    type = "binomial"
-)
-eval.AB.sabre <- sabre::vmeasure(
-    as.character(assignments.AB$AB),
-    as.character(reads.mapping$AB_id))
-
-p <- cvms::plot_confusion_matrix(eval.AB.cvms) +
-    labs(title = "Confusion Matrix",
-         x = "Target Abundance Class",
-         y = "Predicted Abundance Class")
-tab <- as.data.frame(
-    c(
-        Accuracy    = round(eval.AB.cvms$Accuracy, 4),
-        Specificity = round(eval.AB.cvms$Specificity, 4),
-        Sensitivity = round(eval.AB.cvms$Sensitivity, 4),
-        Fscore      = round(eval.AB.cvms$F1, 4),
-        Kappa       = round(eval.AB.cvms$Kappa, 4),
-        Vmeasure    = round(eval.AB.sabre$v_measure, 4)
-    )
-)
-grid.arrange(p, ncol = 1)
-knitr::kable(tab, caption = "AB binning evaluation", col.names = NULL)
+eval.AB <- evaluate_bins(res.AB, reads.mapping,
+                         id = "anonymous_read_id", label = "AB_id")
+eval.AB$confusion
+knitr::kable(as.data.frame(eval.AB$per_bin), digits = 3)
+knitr::kable(as.data.frame(eval.AB$overall), digits = 3)
 ```
+
+Per-bin purity is the fraction of reads in a bin from its dominant
+abundance class. The adjusted Rand index (ARI) compares the two
+partitions without assuming that their labels correspond.
 
 # Composition based binning example
 
-Read-level ground truth (bacterial genome of origin):
-```{r, eval=TRUE, message=FALSE, warning=FALSE}
-reads.mapping <- fread(
-        system.file("extdata", "reads_mapping.tsv.gz", package = "metabinR")) %>%
-    arrange(anonymous_read_id)
-```
+Here the known label is the bacterial genome of origin, rather than the
+abundance class used above.
 
 Run composition-based binning with 4-mers into 10 clusters:
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
@@ -179,22 +161,28 @@ res.CB <- composition_based_binning(
     dryRun = TRUE,
     outputCB = "vignette"
 )
-assignments.CB <- as.data.frame(res.CB) %>% arrange(read_id)
 ```
 
-As a pure clustering task, evaluate with extrinsic measures:
+Check bin sizes and inspect reads with close competing distances. The
+`margin` is an absolute distance difference on this algorithm's scale,
+not a probability. A small result can mean either that few reads are
+close to a boundary or that the chosen margin is too narrow:
 ```{r, eval=TRUE, message=FALSE, warning=FALSE}
-eval.CB.sabre <- sabre::vmeasure(
-    as.character(assignments.CB$CB),
-    as.character(reads.mapping$genome_id))
-tab <- as.data.frame(
-    c(
-        Vmeasure     = round(eval.CB.sabre$v_measure, 4),
-        Homogeneity  = round(eval.CB.sabre$homogeneity, 4),
-        Completeness = round(eval.CB.sabre$completeness, 4)
-    )
-)
-knitr::kable(tab, caption = "CB binning evaluation", col.names = NULL)
+knitr::kable(as.data.frame(bin_summary(res.CB)), digits = 3)
+close.reads <- ambiguous_reads(res.CB, margin = 0.05)
+nrow(close.reads)
+knitr::kable(head(as.data.frame(close.reads)), digits = 3)
+```
+
+Evaluate by genome of origin. Best-bin recovery is the fraction of an
+origin's reads found in its single largest bin; it is not genome
+completeness. Weighted purity and recovery summarize these counts over
+all evaluated reads:
+```{r, eval=TRUE, message=FALSE, warning=FALSE}
+eval.CB <- evaluate_bins(res.CB, reads.mapping,
+                         id = "anonymous_read_id", label = "genome_id")
+knitr::kable(as.data.frame(eval.CB$per_origin), digits = 3)
+knitr::kable(as.data.frame(eval.CB$overall), digits = 3)
 ```
 
 # Hierarchical (2-step ABxCB) binning example
@@ -208,20 +196,15 @@ res.ABxCB <- hierarchical_binning(
     dryRun = TRUE,
     outputC = "vignette"
 )
-assignments.ABxCB <- as.data.frame(res.ABxCB) %>% arrange(read_id)
-
-eval.ABxCB.sabre <- sabre::vmeasure(
-    as.character(assignments.ABxCB$ABxCB),
-    as.character(reads.mapping$genome_id))
-tab <- as.data.frame(
-    c(
-        Vmeasure     = round(eval.ABxCB.sabre$v_measure, 4),
-        Homogeneity  = round(eval.ABxCB.sabre$homogeneity, 4),
-        Completeness = round(eval.ABxCB.sabre$completeness, 4)
-    )
-)
-knitr::kable(tab, caption = "ABxCB binning evaluation", col.names = NULL)
+knitr::kable(as.data.frame(bin_summary(res.ABxCB)), digits = 3)
+eval.ABxCB <- evaluate_bins(res.ABxCB, reads.mapping,
+                            id = "anonymous_read_id", label = "genome_id")
+knitr::kable(as.data.frame(eval.ABxCB$overall), digits = 3)
 ```
+
+In hierarchical results, distances for bins outside a read's parent
+abundance bin are missing. `ambiguous_reads()` ignores those missing
+distances and omits reads with fewer than two finite candidates.
 
 # In-memory inputs (Biostrings / ShortRead)
 

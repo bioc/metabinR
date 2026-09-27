@@ -2,8 +2,11 @@
 
 export(abundance_based_binning)
 export(algorithm)
+export(ambiguous_reads)
 export(assignments)
+export(bin_summary)
 export(composition_based_binning)
+export(evaluate_bins)
 export(hierarchical_binning)
 export(metabinR_jvm_options)
 export(nClusters)

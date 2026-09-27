@@ -1,6 +1,21 @@
-# metabinR 2.0.0
+# metabinR NEWS
 
-## Breaking changes
+## metabinR 2.2.0 (2026-10)
+
+### New features
+
+* `bin_summary()` reports the read count, proportion, and assigned-distance
+  summaries for each observed bin in a `MetabinResult`.
+* `ambiguous_reads()` identifies reads whose two closest finite bin distances
+  differ by no more than a chosen margin. For hierarchical results, distances
+  outside the read's parent abundance bin are ignored.
+* `evaluate_bins()` joins bin assignments to known read origins by ID and
+  reports a confusion table, per-bin purity, per-origin best-bin recovery,
+  and the adjusted Rand index. All measures use read counts.
+
+## metabinR 2.0.0
+
+### Breaking changes
 
 * The three binning entry points — `abundance_based_binning()`,
   `composition_based_binning()`, `hierarchical_binning()` — now return a
@@ -9,9 +24,9 @@
 * The Java backend no longer exposes a command-line interface; the shaded
   JAR dropped the `commons-cli` dependency. R is the only supported entry
   point.
-* Minimum Java runtime is now 17 (previously 8).
+* Minimum Java runtime is now 11 (previously 8).
 
-## New features
+### New features
 
 * New `MetabinResult` class with accessors `assignments()`, `nClusters()`,
   `parameters()`, `algorithm()`, plus `show()` and `as.data.frame()`
@@ -28,7 +43,7 @@
   through `cli::cli_abort()` with classed conditions
   (`metabinR_error_*`).
 
-## Internal
+### Internal
 
 * Java sources build via Maven (`java/metabinR/pom.xml`,
   `tools/build-jar.sh`); the shaded JAR is reproducible
@@ -37,39 +52,39 @@
   tab-separated assignments directly to R, removing the previous
   round-trip through on-disk CLI output.
 
-# metabinR 1.5.1 (2024-04-07)
+## metabinR 1.5.1 (2024-04-07)
 
 * Preparing for next Bioconductor Release.
 
-# metabinR 1.5.0 (2023-10-29)
+## metabinR 1.5.0 (2023-10-29)
 
 * Bump x.y.z version to odd y following creation of RELEASE_3_18 branch.
 
-# metabinR 1.2.0 (2023-04-21)
+## metabinR 1.2.0 (2023-04-21)
 
 * Bump x.y.z version to even y prior to creation of RELEASE_3_17 branch.
 
-# metabinR 1.1.0 (2022-11-01)
+## metabinR 1.1.0 (2022-11-01)
 
 * Bump x.y.z version to odd y following creation of RELEASE_3_16 branch.
 
-# metabinR 1.0.0 (2022-11-01)
+## metabinR 1.0.0 (2022-11-01)
 
 * Bioconductor 3.16 Release. New package **metabinR**, Abundance and
   Compositional Based Binning of Metagenomes.
 
-# metabinR 0.99.3 (2022-10-30)
+## metabinR 0.99.3 (2022-10-30)
 
 * Update NEWS.
 
-# metabinR 0.99.2 (2022-10-26)
+## metabinR 0.99.2 (2022-10-26)
 
 * Remove citation message on package attach.
 
-# metabinR 0.99.1 (2022-10-11)
+## metabinR 0.99.1 (2022-10-11)
 
 * Precheck changes on vignette.
 
-# metabinR 0.99.0 (2022-10-05)
+## metabinR 0.99.0 (2022-10-05)
 
 * Submitted to Bioconductor.
