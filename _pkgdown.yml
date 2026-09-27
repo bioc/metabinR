@@ -9,6 +9,12 @@ reference:
   - abundance_based_binning
   - composition_based_binning
   - hierarchical_binning
+- title: Result analysis
+  desc: Summarize assignments and compare them with known read origins.
+  contents:
+  - bin_summary
+  - ambiguous_reads
+  - evaluate_bins
 - title: MetabinResult
   desc: S4 container for binning assignments and parameters.
   contents:
